@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orphan Entity Cleaner</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f5f6f8;
+    --surface:   #ffffff;
+    --surface2:  #f0f1f3;
+    --border:    rgba(0,0,0,0.10);
+    --border2:   rgba(0,0,0,0.18);
+    --text:      #1a1a1a;
+    --text2:     #5f6368;
+    --text3:     #9aa0a6;
+    --green:     #1D9E75;
+    --green-dk:  #0F6E56;
+    --green-lt:  #E1F5EE;
+    --green-tx:  #085041;
+    --red:       #A32D2D;
+    --red-dk:    #791F1F;
+    --red-lt:    #FCEBEB;
+    --red-tx:    #501313;
+    --amber-lt:  #FAEEDA;
+    --amber-tx:  #633806;
+    --blue-lt:   #E6F1FB;
+    --blue-tx:   #0C447C;
+    --radius:    10px;
+    --radius-sm: 6px;
+    --mono:      'SFMono-Regular','Consolas','Liberation Mono',monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:       #111213;
+      --surface:  #1e1f21;
+      --surface2: #2a2b2d;
+      --border:   rgba(255,255,255,0.09);
+      --border2:  rgba(255,255,255,0.16);
+      --text:     #e8eaed;
+      --text2:    #9aa0a6;
+      --text3:    #5f6368;
+      --green-lt: #04342C;
+      --green-tx: #9FE1CB;
+      --red-lt:   #501313;
+      --red-tx:   #F7C1C1;
+      --amber-lt: #412402;
+      --amber-tx: #FAC775;
+      --blue-lt:  #042C53;
+      --blue-tx:  #B5D4F4;
+    }
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+  .topbar { background: var(--surface); border-bottom: 0.5px solid var(--border);
+    padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 10; }
+  .topbar-icon { width: 30px; height: 30px; background: var(--green); border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .topbar-icon svg { width: 16px; height: 16px; fill: white; }
+  .topbar-title { font-size: 15px; font-weight: 500; }
+  .topbar-sub   { font-size: 11px; color: var(--text2); margin-top: 1px; }
+  .topbar-spacer { flex: 1; }
+  .config-pill  { font-size: 11px; background: var(--surface2); border: 0.5px solid var(--border);
+    border-radius: 20px; padding: 4px 10px; color: var(--text2); }
+
+  .main { padding: 20px; max-width: 980px; margin: 0 auto; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .s-label { font-size: 11px; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .s-val   { font-size: 24px; font-weight: 500; }
+  .s-danger .s-val { color: var(--red); }
+  .s-ok    .s-val  { color: var(--green); }
+  .s-warn  .s-val  { color: #BA7517; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  button { font-family: inherit; font-size: 13px; border: 0.5px solid var(--border2);
+    background: var(--surface); color: var(--text); border-radius: var(--radius-sm);
+    padding: 7px 14px; cursor: pointer; white-space: nowrap; transition: background 0.1s; }
+  button:hover:not(:disabled)   { background: var(--surface2); }
+  button:active:not(:disabled)  { transform: scale(0.98); }
+  button:disabled { opacity: 0.38; cursor: default; }
+  .btn-primary { background: var(--green); border-color: var(--green); color: #fff; font-weight: 500; }
+  .btn-primary:hover:not(:disabled) { background: var(--green-dk); }
+  .btn-danger  { background: var(--red);   border-color: var(--red);   color: #fff; font-weight: 500; }
+  .btn-danger:hover:not(:disabled)  { background: var(--red-dk); }
+
+  .search { flex: 1; min-width: 200px; border: 0.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 7px 12px; font-size: 13px; font-family: inherit;
+    background: var(--surface); color: var(--text); }
+  .search:focus { outline: none; border-color: var(--border2); }
+  .search::placeholder { color: var(--text3); }
+
+  .card { background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+  .card-header { padding: 11px 16px; border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; gap: 10px; background: var(--surface2); }
+  .ch-title { font-size: 13px; font-weight: 500; flex: 1; }
+  .ch-meta  { font-size: 11px; color: var(--text2); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { padding: 8px 14px; text-align: left; font-size: 11px; font-weight: 500;
+    color: var(--text2); text-transform: uppercase; letter-spacing: 0.03em;
+    border-bottom: 0.5px solid var(--border); background: var(--surface2); white-space: nowrap; }
+  .th-chk   { width: 38px; text-align: center; }
+  .th-age   { width: 90px; }
+  .th-method{ width: 170px; }
+  tbody tr  { border-bottom: 0.5px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td  { padding: 9px 14px; vertical-align: middle; }
+  .td-chk   { text-align: center; }
+
+  .eid { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+  .platform-badge { display: inline-block; background: var(--surface2); border: 0.5px solid var(--border);
+    border-radius: 4px; padding: 2px 7px; font-size: 11px; color: var(--text2); white-space: nowrap; }
+  .badge { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px; white-space: nowrap; }
+  .badge-ts        { background: var(--green-lt); color: var(--green-tx); }
+  .badge-heuristic { background: var(--amber-lt); color: var(--amber-tx); }
+  .badge-disabled  { background: var(--blue-lt);  color: var(--blue-tx); margin-left: 4px; }
+  .age-text { font-size: 12px; color: var(--text2); }
+  input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: var(--green); }
+
+  .empty { padding: 48px 20px; text-align: center; color: var(--text2); }
+  .empty svg { width: 40px; height: 40px; fill: var(--text3); margin-bottom: 12px; }
+  .empty p    { font-size: 14px; }
+  .empty-hint { font-size: 12px; color: var(--text3); margin-top: 6px; }
+
+  .log-box { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; font-family: var(--mono); font-size: 12px; color: var(--text2);
+    max-height: 200px; overflow-y: auto; line-height: 1.8; margin-bottom: 14px; }
+  .log-line.ok   { color: var(--green); }
+  .log-line.err  { color: var(--red); }
+  .log-line.warn { color: #BA7517; }
+  .log-line.info { color: var(--text2); }
+
+  .statusbar { font-size: 11px; color: var(--text3); padding: 0 2px 14px;
+    display: flex; gap: 10px; align-items: center; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+  .dot.ok  { background: var(--green); }
+  .dot.err { background: var(--red); }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border2);
+    border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite;
+    vertical-align: middle; margin-right: 6px; }
+
+  /* Modal — usa min-height sul wrapper, non position:fixed */
+  .overlay-wrap { background: rgba(0,0,0,0.45); display: none; align-items: center;
+    justify-content: center; padding: 40px 20px; min-height: 100vh; position: fixed;
+    inset: 0; z-index: 100; }
+  .overlay-wrap.show { display: flex; }
+  .modal { background: var(--surface); border: 0.5px solid var(--border2);
+    border-radius: var(--radius); padding: 24px 28px; max-width: 420px; width: 100%; }
+  .modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 10px; }
+  .modal p  { font-size: 13px; color: var(--text2); margin-bottom: 20px; line-height: 1.6; }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Sezione info servizi */
+  .info-card { background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px; margin-bottom: 14px; }
+  .info-card h3 { font-size: 13px; font-weight: 500; margin-bottom: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.04em; }
+  .service-row  { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .service-row:last-child { margin-bottom: 0; }
+  .svc-name { font-family: var(--mono); font-size: 12px; background: var(--surface2);
+    border: 0.5px solid var(--border); border-radius: 4px; padding: 3px 8px;
+    white-space: nowrap; flex-shrink: 0; color: var(--green-dk); }
+  @media (prefers-color-scheme: dark) { .svc-name { color: var(--green-tx); } }
+  .svc-desc { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+  @media (max-width: 600px) {
+    .stat-row { grid-template-columns: 1fr 1fr; }
+    .topbar-sub { display: none; }
+    .th-method, .td-method { display: none; }
+    .th-age,    .td-age    { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-icon">
+    <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
+  </div>
+  <div>
+    <div class="topbar-title">Orphan Entity Cleaner</div>
+    <div class="topbar-sub">Integrazione Home Assistant — pulizia entità orfane</div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="config-pill" id="cfg-pill">caricamento…</div>
+</div>
+
+<div class="main">
+
+  <!-- Stat -->
+  <div class="stat-row">
+    <div class="stat">          <div class="s-label">Entità totali</div>  <div class="s-val" id="s-total">—</div></div>
+    <div class="stat s-danger"> <div class="s-label">Orfane trovate</div> <div class="s-val" id="s-orphan">—</div></div>
+    <div class="stat s-warn">   <div class="s-label">Euristiche</div>     <div class="s-val" id="s-heur">—</div></div>
+    <div class="stat s-ok">     <div class="s-label">Selezionate</div>    <div class="s-val" id="s-sel">0</div></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button class="btn-primary" id="btn-scan" onclick="doScan()">Scansiona</button>
+    <button id="btn-selall" onclick="selAll()"   disabled>Seleziona tutto</button>
+    <button id="btn-desel"  onclick="deselAll()" disabled>Deseleziona</button>
+    <input  class="search" type="text" placeholder="Filtra per entity_id o piattaforma…"
+            id="filter" oninput="applyFilter()" disabled>
+    <button class="btn-danger" id="btn-del" onclick="confirmDelete()" disabled>Elimina selezionate</button>
+  </div>
+
+  <!-- Table card -->
+  <div class="card">
+    <div class="card-header">
+      <span class="ch-title" id="tbl-title">Nessuna scansione eseguita</span>
+      <span class="ch-meta"  id="tbl-meta"></span>
+    </div>
+    <div id="tbl-wrap">
+      <div class="empty">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <p>Premi <strong>Scansiona</strong> per cercare le entità orfane.</p>
+        <div class="empty-hint">La scansione è non distruttiva: puoi rivedere i risultati prima di eliminare.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="statusbar">
+    <div class="dot" id="dot"></div>
+    <span id="status-txt">In attesa di scansione</span>
+  </div>
+
+  <!-- Log -->
+  <div class="log-box" id="log-box"></div>
+
+  <!-- Info servizi -->
+  <div class="info-card">
+    <h3>Servizi disponibili</h3>
+    <div class="service-row">
+      <span class="svc-name">orphan_cleaner.scan</span>
+      <span class="svc-desc">Esegue la scansione e spara l'evento <code>orphan_cleaner_orphans_found</code> — utile nelle automazioni.</span>
+    </div>
+    <div class="service-row">
+      <span class="svc-name">orphan_cleaner.delete_orphans</span>
+      <span class="svc-desc">Elimina le entità specificate in <code>entity_ids</code>, oppure tutte le orfane se omesso. Supporta <code>dry_run: true</code>.</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal conferma -->
+<div class="overlay-wrap" id="overlay">
+  <div class="modal">
+    <h2>Conferma eliminazione</h2>
+    <p id="modal-msg"></p>
+    <div class="modal-btns">
+      <button onclick="closeModal()">Annulla</button>
+      <button class="btn-danger" onclick="doDelete()">Elimina</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allOrphans = [];
+let selected   = new Set();
+
+function addLog(msg, type='info') {
+  const box  = document.getElementById('log-box');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.textContent = '[' + new Date().toLocaleTimeString('it-IT') + ']  ' + msg;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+function setStatus(msg, state='') {
+  document.getElementById('status-txt').textContent = msg;
+  document.getElementById('dot').className = 'dot' + (state ? ' '+state : '');
+}
+function updateSelCount() {
+  document.getElementById('s-sel').textContent = selected.size;
+  document.getElementById('btn-del').disabled  = selected.size === 0;
+}
+function filteredOrphans() {
+  const q = (document.getElementById('filter').value || '').toLowerCase();
+  return q ? allOrphans.filter(e => e.entity_id.includes(q) || e.platform.includes(q)) : allOrphans;
+}
+function selAll()   { filteredOrphans().forEach(e => selected.add(e.entity_id)); renderTable(filteredOrphans()); updateSelCount(); }
+function deselAll() { selected.clear(); renderTable(filteredOrphans()); updateSelCount(); }
+function toggleRow(id, chk) { chk ? selected.add(id) : selected.delete(id); updateSelCount(); }
+function applyFilter() {
+  const items = filteredOrphans();
+  renderTable(items);
+  const q = document.getElementById('filter').value;
+  document.getElementById('tbl-meta').textContent = q ? items.length+' di '+allOrphans.length : '';
+}
+function renderTable(items) {
+  const wrap = document.getElementById('tbl-wrap');
+  if (!items.length) {
+    wrap.innerHTML = `<div class="empty">
+      <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      <p>Nessuna entità orfana trovata.</p>
+      <div class="empty-hint">Il registro è pulito con i criteri attuali.</div></div>`;
+    return;
+  }
+  const rows = items.map(e => {
+    const chk   = selected.has(e.entity_id) ? 'checked' : '';
+    const badge = e.method === 'timestamp'
+      ? '<span class="badge badge-ts">orphaned_timestamp</span>'
+      : '<span class="badge badge-heuristic">euristico</span>';
+    const dis   = e.disabled_by ? '<span class="badge badge-disabled">disabilitata</span>' : '';
+    const age   = e.age_hours != null ? e.age_hours+'h' : '—';
+    return `<tr>
+      <td class="td-chk"><input type="checkbox" ${chk} onchange="toggleRow('${e.entity_id}',this.checked)"></td>
+      <td><span class="eid">${e.entity_id}</span>${dis}</td>
+      <td><span class="platform-badge">${e.platform}</span></td>
+      <td class="td-method">${badge}</td>
+      <td class="td-age"><span class="age-text">${age}</span></td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th class="th-chk"><input type="checkbox" onchange="this.checked?selAll():deselAll()"></th>
+      <th>Entity ID</th><th>Piattaforma</th>
+      <th class="th-method">Rilevamento</th>
+      <th class="th-age">Età</th>
+    </tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+async function doScan() {
+  const btn = document.getElementById('btn-scan');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Scansione…';
+  setStatus('Contatto Home Assistant…');
+  document.getElementById('log-box').innerHTML = '';
+  selected.clear(); updateSelCount();
+  try {
+    const r    = await fetch('/api/orphan_cleaner/scan');
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+    allOrphans = data.orphans || [];
+    const ts_n = allOrphans.filter(o => o.method === 'timestamp').length;
+    const he_n = allOrphans.filter(o => o.method === 'heuristic').length;
+    document.getElementById('s-total').textContent  = data.total;
+    document.getElementById('s-orphan').textContent = allOrphans.length;
+    document.getElementById('s-heur').textContent   = he_n;
+    document.getElementById('tbl-title').textContent =
+      allOrphans.length ? allOrphans.length+' entità orfane' : 'Nessuna entità orfana';
+    document.getElementById('cfg-pill').textContent =
+      'età min: '+data.min_age+'h | euristica: '+(data.aggressive?'on':'off');
+    document.getElementById('filter').disabled    = false;
+    document.getElementById('btn-selall').disabled = false;
+    document.getElementById('btn-desel').disabled  = false;
+    renderTable(allOrphans);
+    addLog('Scansione completata: '+data.total+' totali, '+allOrphans.length+' orfane ('+ts_n+' da timestamp, '+he_n+' euristiche).','ok');
+    setStatus('Ultima scansione: '+new Date().toLocaleTimeString('it-IT'),'ok');
+  } catch(err) {
+    addLog('Errore: '+err.message,'err');
+    setStatus('Errore — vedi log HA','err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Scansiona';
+  }
+}
+
+function confirmDelete() {
+  if (!selected.size) return;
+  document.getElementById('modal-msg').innerHTML =
+    'Stai per eliminare <strong>'+selected.size+' entità</strong> dal registro di Home Assistant.<br>'
+    +'L\'operazione è <strong>irreversibile</strong>. Procedere?';
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+
+async function doDelete() {
+  closeModal();
+  const ids = [...selected];
+  document.getElementById('btn-del').disabled = true;
+  addLog('Eliminazione di '+ids.length+' entità…','info');
+  setStatus('Eliminazione in corso…');
+  try {
+    const r    = await fetch('/api/orphan_cleaner/delete', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({entity_ids: ids})
+    });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.json();
+    data.deleted.forEach(id => {
+      allOrphans = allOrphans.filter(e => e.entity_id !== id);
+      selected.delete(id);
+      addLog('✓ Cancellata: '+id,'ok');
+    });
+    (data.failed||[]).forEach(id => addLog('✗ Fallita: '+id,'err'));
+    document.getElementById('s-orphan').textContent = allOrphans.length;
+    document.getElementById('s-heur').textContent   = allOrphans.filter(o=>o.method==='heuristic').length;
+    renderTable(filteredOrphans());
+    updateSelCount();
+    addLog('Completato: '+data.deleted_count+' eliminate, '+data.failed_count+' fallite.',
+           data.failed_count > 0 ? 'warn' : 'ok');
+    setStatus('Eliminazione completata — '+new Date().toLocaleTimeString('it-IT'),
+              data.failed_count > 0 ? 'err' : 'ok');
+  } catch(err) {
+    addLog('Errore: '+err.message,'err');
+    setStatus('Errore — vedi log HA','err');
+  } finally {
+    document.getElementById('btn-del').disabled = selected.size === 0;
+  }
+}
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+</script>
+</body>
+</html>
