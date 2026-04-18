@@ -58,7 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         config={
             "_panel_custom": {
                 "name":          "orphan-cleaner-panel",
-                "js_url":        "/api/orphan_cleaner/orphan-cleaner-panel.js",
+                "js_url": "/api/orphan_cleaner/orphan-cleaner-panel.js?v=1.0.3",
                 "embed_iframe":  False,
                 "trust_external": False,
             }
