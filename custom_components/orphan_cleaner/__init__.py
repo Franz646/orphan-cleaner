@@ -14,12 +14,15 @@ import pathlib
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.components import frontend
+from homeassistant.components.http import StaticPathConfig
 
 from .const import DOMAIN, PANEL_URL, PANEL_NAME, PANEL_ICON, VERSION
 from .panel_api import async_register_views
 from .services import async_register_services, async_unregister_services
 
 _LOGGER = logging.getLogger(__name__)
+
+PANEL_JS_URL = f"/orphan_cleaner_static/orphan-cleaner-panel.js"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -36,27 +39,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if _pycache.exists():
         shutil.rmtree(_pycache, ignore_errors=True)
 
-    # ── HTTP views (panel + internal REST API) ─────────────────────────
+    # ── Serve static JS file directly (no cache issues) ───────────────
+    frontend_dir = pathlib.Path(__file__).parent / "frontend"
+    await hass.http.async_register_static_paths([
+        StaticPathConfig(
+            url_path="/orphan_cleaner_static",
+            path=str(frontend_dir),
+            cache_headers=False,
+        )
+    ])
+
+    # ── HTTP views (panel HTML + internal REST API) ────────────────────
     async_register_views(hass)
 
     # ── HA services ────────────────────────────────────────────────────
     async_register_services(hass)
 
-    # ── Sidebar panel — iframe mode (no JS cache issues) ──────────────
+    # ── Sidebar panel ─────────────────────────────────────────────────
     frontend.async_register_built_in_panel(
         hass,
-        component_name="iframe",
+        component_name="custom",
         sidebar_title=PANEL_NAME,
         sidebar_icon=PANEL_ICON,
         frontend_url_path=PANEL_URL,
         config={
-            "url": f"/api/orphan_cleaner/panel?v={VERSION}",
+            "_panel_custom": {
+                "name":           "orphan-cleaner-panel",
+                "js_url":         f"{PANEL_JS_URL}?v={VERSION}",
+                "embed_iframe":   False,
+                "trust_external": False,
+            }
         },
         require_admin=True,
     )
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-
     _LOGGER.info("Orphan Entity Cleaner %s loaded", VERSION)
     return True
 

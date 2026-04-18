@@ -25,7 +25,7 @@ class OrphanCleanerIndexView(HomeAssistantView):
 
     url          = "/api/orphan_cleaner/panel"
     name         = "api:orphan_cleaner:panel"
-    requires_auth = True
+    requires_auth = False
 
     async def get(self, request: web.Request) -> web.Response:
         html = await request.loop.run_in_executor(
