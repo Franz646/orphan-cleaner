@@ -18,7 +18,7 @@ from .services import async_register_services, async_unregister_services
 _LOGGER = logging.getLogger(__name__)
 
 # Nome univoco per versione — forza HA a ricaricare il JS ad ogni update
-PANEL_ELEMENT_NAME = f"orphan-cleaner-panel-{VERSION.replace('.', '-')}"
+PANEL_ELEMENT_NAME = f"orphan-cleaner-panel-{VERSION.replace(".", "-")}"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
