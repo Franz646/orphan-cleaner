@@ -1,12 +1,12 @@
-// Orphan Entity Cleaner — Custom Panel for Home Assistant
-// Registered as panel_custom: receives `hass` with authenticated token.
+// Orphan Entity Cleaner — Custom Panel per Home Assistant
+// Registrato come panel_custom: riceve `hass` con il token già autenticato.
 
 class OrphanCleanerPanel extends HTMLElement {
   constructor() {
     super();
-    this._hass  = null;
+    this._hass   = null;
     this._shadow = this.attachShadow({ mode: "open" });
-    this._state = {
+    this._state  = {
       allOrphans: [],
       selected:   new Set(),
       scanning:   false,
@@ -22,6 +22,7 @@ class OrphanCleanerPanel extends HTMLElement {
     this._hass = hass;
   }
 
+  // ── Chiamate API ───────────────────────────────────────────────────
   async _apiFetch(path, options = {}) {
     const token = this._hass.auth.data.access_token;
     const base  = `${location.protocol}//${location.host}`;
@@ -39,11 +40,12 @@ class OrphanCleanerPanel extends HTMLElement {
 
   async _doScan() {
     if (this._state.scanning) return;
-    this._state.scanning   = true;
+    this._state.scanning  = true;
     this._state.allOrphans = [];
     this._state.selected   = new Set();
     this._state.logs       = [];
     this._updateAll();
+
     try {
       const data = await this._apiFetch("/api/orphan_cleaner/scan");
       if (data.error) throw new Error(data.error);
@@ -52,15 +54,9 @@ class OrphanCleanerPanel extends HTMLElement {
       this._state.scannedAt  = new Date().toLocaleTimeString("en-GB");
       const ts_n = this._state.allOrphans.filter(o => o.method === "timestamp").length;
       const he_n = this._state.allOrphans.filter(o => o.method === "heuristic").length;
-      const de_n = this._state.allOrphans.filter(o => o.method === "dead_entry").length;
-      const un_n = this._state.allOrphans.filter(o => o.method === "unavailable").length;
-      this._log(`Scan complete: ${data.total} total, ${this._state.allOrphans.length} orphans (${ts_n} timestamp, ${de_n} dead entry, ${un_n} unavailable, ${he_n} heuristic).`, "ok");
-      const pill = this._shadow.getElementById("cfg-pill");
-      if (pill) pill.textContent = `min age: ${data.min_age}h | heuristic: ${data.aggressive ? "on" : "off"}`;
-      const title = this._shadow.getElementById("tbl-title");
-      if (title) title.textContent = this._state.allOrphans.length
-        ? `${this._state.allOrphans.length} orphan entities found`
-        : "No orphan entities found";
+      const de_n = this._state.allOrphans.filter(o => o.method === 'dead_entry').length;
+      const un_n = this._state.allOrphans.filter(o => o.method === 'unavailable').length;
+      this._log(`Scan: ${data.total} total, ${this._state.allOrphans.length} orphans (${ts_n} timestamp, ${de_n} dead entries, ${un_n} unavailable, ${he_n} heuristic).`, 'ok');
     } catch (e) {
       this._log("Scan error: " + e.message, "err");
     } finally {
@@ -74,6 +70,7 @@ class OrphanCleanerPanel extends HTMLElement {
     this._state.deleting = true;
     this._log(`Deleting ${ids.length} entities…`, "info");
     this._updateAll();
+
     try {
       const data = await this._apiFetch("/api/orphan_cleaner/delete", {
         method: "POST",
@@ -108,6 +105,7 @@ class OrphanCleanerPanel extends HTMLElement {
     }
   }
 
+  // ── Selezione ──────────────────────────────────────────────────────
   _toggleRow(id, checked) {
     checked ? this._state.selected.add(id) : this._state.selected.delete(id);
     this._updateStats();
@@ -115,11 +113,15 @@ class OrphanCleanerPanel extends HTMLElement {
   }
   _selAll() {
     this._filtered().forEach(e => this._state.selected.add(e.entity_id));
-    this._updateTable(); this._updateStats(); this._updateButtons();
+    this._updateTable();
+    this._updateStats();
+    this._updateButtons();
   }
   _deselAll() {
     this._state.selected.clear();
-    this._updateTable(); this._updateStats(); this._updateButtons();
+    this._updateTable();
+    this._updateStats();
+    this._updateButtons();
   }
   _filtered() {
     const q = (this._shadow.getElementById("filter")?.value || "").toLowerCase();
@@ -128,8 +130,9 @@ class OrphanCleanerPanel extends HTMLElement {
       : this._state.allOrphans;
   }
 
+  // ── Partial updates ────────────────────────────────────────────────
   _updateStats() {
-    const s  = this._state;
+    const s = this._state;
     const he = s.allOrphans.filter(o => o.method === "heuristic").length;
     this._setText("s-total",  s.total != null ? s.total : "—");
     this._setText("s-orphan", s.allOrphans.length || (s.total != null ? "0" : "—"));
@@ -141,16 +144,16 @@ class OrphanCleanerPanel extends HTMLElement {
     if (el) el.textContent = val;
   }
   _updateButtons() {
-    const s   = this._state;
-    const has = s.allOrphans.length > 0;
-    this._setDisabled("btn-selall", !has);
-    this._setDisabled("btn-desel",  !has);
-    this._setDisabled("btn-del",    s.selected.size === 0 || s.deleting);
-    this._setDisabled("btn-scan",   s.scanning);
+    const s    = this._state;
+    const has  = s.allOrphans.length > 0;
+    this._setDisabled("btn-selall",  !has);
+    this._setDisabled("btn-desel",   !has);
+    this._setDisabled("btn-del",     s.selected.size === 0 || s.deleting);
+    this._setDisabled("btn-scan",    s.scanning);
     const filterEl = this._shadow.getElementById("filter");
     if (filterEl) filterEl.disabled = !has;
     const scanBtn = this._shadow.getElementById("btn-scan");
-    if (scanBtn) scanBtn.textContent = s.scanning ? "Scanning…" : "Scan";
+    if (scanBtn) scanBtn.textContent = s.scanning ? "Scanning…" : "Scansiona";
   }
   _setDisabled(id, val) {
     const el = this._shadow.getElementById(id);
@@ -161,13 +164,34 @@ class OrphanCleanerPanel extends HTMLElement {
     if (!wrap) return;
     const items = this._filtered();
     if (!items.length) {
-      wrap.innerHTML = `<div class="empty"><p>${
+      wrap.innerHTML = this._emptyHTML(
         this._state.total != null
           ? "No orphan entities found."
-          : "Press <strong>Scan</strong> to search for orphan entities."
-      }</p></div>`;
+          : "Press Scan to search for orphan entities."
+      );
       return;
     }
+    wrap.innerHTML = this._tableHTML(items);
+    // Re-attach checkbox listeners
+    wrap.querySelectorAll("input[data-eid]").forEach(chk => {
+      chk.addEventListener("change", () => this._toggleRow(chk.dataset.eid, chk.checked));
+    });
+    const allChk = wrap.querySelector("#chk-all");
+    if (allChk) {
+      allChk.addEventListener("change", () => allChk.checked ? this._selAll() : this._deselAll());
+    }
+  }
+  _updateAll() {
+    this._updateStats();
+    this._updateButtons();
+    this._updateTable();
+  }
+
+  // ── HTML helpers ───────────────────────────────────────────────────
+  _emptyHTML(msg) {
+    return `<div class="empty"><p>${msg}</p></div>`;
+  }
+  _tableHTML(items) {
     const rows = items.map(e => {
       const chk   = this._state.selected.has(e.entity_id) ? "checked" : "";
       const badge = e.method === "timestamp"
@@ -177,8 +201,8 @@ class OrphanCleanerPanel extends HTMLElement {
         : e.method === "unavailable"
         ? `<span class="badge badge-unavail">unavailable</span>`
         : `<span class="badge badge-heuristic">heuristic</span>`;
-      const dis = e.disabled_by ? `<span class="badge badge-disabled">disabled</span>` : "";
-      const age = e.age_hours != null ? `${e.age_hours}h` : "—";
+      const dis   = e.disabled_by ? `<span class="badge badge-disabled">disabled</span>` : "";
+      const age   = e.age_hours != null ? `${e.age_hours}h` : "—";
       return `<tr>
         <td class="td-chk"><input type="checkbox" data-eid="${e.entity_id}" ${chk}></td>
         <td><span class="eid">${e.entity_id}</span>${dis}</td>
@@ -187,7 +211,7 @@ class OrphanCleanerPanel extends HTMLElement {
         <td class="td-age"><span class="age-text">${age}</span></td>
       </tr>`;
     }).join("");
-    wrap.innerHTML = `<table>
+    return `<table>
       <thead><tr>
         <th class="th-chk"><input type="checkbox" id="chk-all"></th>
         <th>Entity ID</th><th>Platform</th>
@@ -196,21 +220,14 @@ class OrphanCleanerPanel extends HTMLElement {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
-    wrap.querySelectorAll("input[data-eid]").forEach(chk => {
-      chk.addEventListener("change", () => this._toggleRow(chk.dataset.eid, chk.checked));
-    });
-    const allChk = wrap.querySelector("#chk-all");
-    if (allChk) allChk.addEventListener("change", () => allChk.checked ? this._selAll() : this._deselAll());
-  }
-  _updateAll() {
-    this._updateStats(); this._updateButtons(); this._updateTable();
   }
 
+  // ── Confirm modal ──────────────────────────────────────────────────
   _showConfirm() {
     const n   = this._state.selected.size;
     const msg = this._shadow.getElementById("modal-msg");
     if (msg) msg.innerHTML =
-      `You are about to delete <strong>${n} entities</strong> from the HA registry.<br>This operation is <strong>irreversible</strong>. Continue?`;
+      `You are about to delete <strong>${n} entities</strong>.<br>This operation is <strong>irreversible</strong>. Continue?`;
     const ov = this._shadow.getElementById("overlay");
     if (ov) ov.classList.add("show");
   }
@@ -219,6 +236,7 @@ class OrphanCleanerPanel extends HTMLElement {
     if (ov) ov.classList.remove("show");
   }
 
+  // ── Full render (first time only) ─────────────────────────────────
   _render() {
     this._shadow.innerHTML = `
 <style>
@@ -226,6 +244,15 @@ class OrphanCleanerPanel extends HTMLElement {
     background: var(--primary-background-color, #111); color: var(--primary-text-color, #eee);
     min-height: 100vh; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  --c-green:    #1D9E75;
+  --c-green-dk: #0F6E56;
+  --c-green-lt: #E1F5EE;
+  --c-green-tx: #085041;
+  --c-red:      #A32D2D;
+  --c-red-lt:   #FCEBEB;
+  --c-red-tx:   #501313;
+
   .topbar { background: var(--card-background-color, #1e1f21);
     border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.1));
     padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 10px; }
@@ -233,12 +260,13 @@ class OrphanCleanerPanel extends HTMLElement {
     display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .topbar-icon svg { width: 16px; height: 16px; fill: white; }
   .topbar-title { font-size: 15px; font-weight: 500; }
-  .topbar-sub { font-size: 11px; color: var(--secondary-text-color, #9aa0a6); margin-top: 1px; }
   .topbar-spacer { flex: 1; }
   .cfg-pill { font-size: 11px; background: var(--secondary-background-color, #2a2b2d);
     border: 1px solid var(--divider-color, rgba(255,255,255,0.1));
     border-radius: 20px; padding: 4px 10px; color: var(--secondary-text-color, #9aa0a6); }
+
   .main { padding: 20px; max-width: 980px; margin: 0 auto; }
+
   .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 18px; }
   .stat { background: var(--secondary-background-color, #2a2b2d); border-radius: 8px; padding: 14px 16px; }
   .s-label { font-size: 11px; color: var(--secondary-text-color, #9aa0a6); margin-bottom: 5px;
@@ -247,6 +275,7 @@ class OrphanCleanerPanel extends HTMLElement {
   .s-danger .s-val { color: #E24B4A; }
   .s-ok     .s-val { color: #1D9E75; }
   .s-warn   .s-val { color: #EF9F27; }
+
   .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
   button { font-family: inherit; font-size: 13px;
     border: 1px solid var(--divider-color, rgba(255,255,255,0.18));
@@ -260,12 +289,15 @@ class OrphanCleanerPanel extends HTMLElement {
   .btn-primary:hover:not(:disabled) { background: #0F6E56; }
   .btn-danger  { background: #A32D2D; border-color: #A32D2D; color: #fff; font-weight: 500; }
   .btn-danger:hover:not(:disabled)  { background: #791F1F; }
-  input[type="text"] { flex: 1; min-width: 200px;
+  input[type="text"] {
+    flex: 1; min-width: 200px;
     border: 1px solid var(--divider-color, rgba(255,255,255,0.12));
     border-radius: 6px; padding: 7px 12px; font-size: 13px; font-family: inherit;
-    background: var(--card-background-color, #1e1f21); color: var(--primary-text-color, #eee); }
+    background: var(--card-background-color, #1e1f21);
+    color: var(--primary-text-color, #eee); }
   input[type="text"]::placeholder { color: var(--secondary-text-color, #9aa0a6); }
   input[type="text"]:focus { outline: none; }
+
   .card { background: var(--card-background-color, #1e1f21);
     border: 1px solid var(--divider-color, rgba(255,255,255,0.1));
     border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
@@ -275,13 +307,15 @@ class OrphanCleanerPanel extends HTMLElement {
     background: var(--secondary-background-color, #2a2b2d); }
   .ch-title { font-size: 13px; font-weight: 500; flex: 1; }
   .ch-meta  { font-size: 11px; color: var(--secondary-text-color, #9aa0a6); }
+
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   thead th { padding: 8px 14px; text-align: left; font-size: 11px; font-weight: 500;
     color: var(--secondary-text-color, #9aa0a6); text-transform: uppercase; letter-spacing: 0.03em;
     border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.1));
     background: var(--secondary-background-color, #2a2b2d); }
   .th-chk { width: 38px; text-align: center; }
-  .th-age { width: 90px; } .th-method { width: 170px; }
+  .th-age { width: 90px; }
+  .th-method { width: 170px; }
   tbody tr { border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.07)); }
   tbody tr:last-child { border-bottom: none; }
   tbody tr:hover { background: var(--secondary-background-color, #2a2b2d); }
@@ -296,12 +330,14 @@ class OrphanCleanerPanel extends HTMLElement {
   .badge { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px; white-space: nowrap; }
   .badge-ts        { background: #04342C; color: #9FE1CB; }
   .badge-heuristic { background: #412402; color: #FAC775; }
-  .badge-dead      { background: #501313; color: #F7C1C1; }
-  .badge-unavail   { background: #26215C; color: #CECBF6; }
+  .badge-dead     { background: #501313; color: #F7C1C1; }
+  .badge-unavail  { background: #26215C; color: #CECBF6; }
   .badge-disabled  { background: #042C53; color: #B5D4F4; margin-left: 4px; }
   .age-text { font-size: 12px; color: var(--secondary-text-color, #9aa0a6); }
+
   .empty { padding: 48px 20px; text-align: center; color: var(--secondary-text-color, #9aa0a6); }
   .empty p { font-size: 14px; }
+
   .log-box { background: var(--card-background-color, #1e1f21);
     border: 1px solid var(--divider-color, rgba(255,255,255,0.1));
     border-radius: 10px; padding: 12px 16px; font-family: monospace; font-size: 12px;
@@ -311,8 +347,10 @@ class OrphanCleanerPanel extends HTMLElement {
   .log-line.err  { color: #E24B4A; }
   .log-line.warn { color: #EF9F27; }
   .log-line.info { color: var(--secondary-text-color, #9aa0a6); }
+
   .statusbar { font-size: 11px; color: var(--secondary-text-color, #9aa0a6);
     padding: 0 2px 14px; display: flex; gap: 10px; align-items: center; }
+
   .overlay-wrap { position: fixed; inset: 0; background: rgba(0,0,0,0.55);
     display: none; align-items: center; justify-content: center; z-index: 999; }
   .overlay-wrap.show { display: flex; }
@@ -322,6 +360,7 @@ class OrphanCleanerPanel extends HTMLElement {
   .modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 10px; }
   .modal p  { font-size: 13px; color: var(--secondary-text-color, #9aa0a6); margin-bottom: 20px; line-height: 1.6; }
   .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
   .info-card { background: var(--card-background-color, #1e1f21);
     border: 1px solid var(--divider-color, rgba(255,255,255,0.1));
     border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; }
@@ -334,6 +373,7 @@ class OrphanCleanerPanel extends HTMLElement {
     border: 1px solid var(--divider-color); border-radius: 4px; padding: 3px 8px;
     white-space: nowrap; flex-shrink: 0; color: #1D9E75; }
   .svc-desc { font-size: 12px; color: var(--secondary-text-color, #9aa0a6); line-height: 1.6; }
+
   @media (max-width: 600px) {
     .stat-row { grid-template-columns: 1fr 1fr; }
     .th-method, .td-method, .th-age, .td-age { display: none; }
@@ -346,7 +386,6 @@ class OrphanCleanerPanel extends HTMLElement {
   </div>
   <div>
     <div class="topbar-title">Orphan Entity Cleaner</div>
-    <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup &nbsp;·&nbsp; v1.1.0</div>
   </div>
   <div class="topbar-spacer"></div>
   <div class="cfg-pill" id="cfg-pill">—</div>
@@ -355,10 +394,11 @@ class OrphanCleanerPanel extends HTMLElement {
 <div class="main">
   <div class="stat-row">
     <div class="stat">          <div class="s-label">Total entities</div>  <div class="s-val" id="s-total">—</div></div>
-    <div class="stat s-danger"> <div class="s-label">Orphans found</div>   <div class="s-val" id="s-orphan">—</div></div>
-    <div class="stat s-warn">   <div class="s-label">Heuristic</div>       <div class="s-val" id="s-heur">—</div></div>
-    <div class="stat s-ok">     <div class="s-label">Selected</div>        <div class="s-val" id="s-sel">0</div></div>
+    <div class="stat s-danger"> <div class="s-label">Orphans found</div> <div class="s-val" id="s-orphan">—</div></div>
+    <div class="stat s-warn">   <div class="s-label">Heuristic</div><div class="s-val" id="s-heur">—</div></div>
+    <div class="stat s-ok">     <div class="s-label">Selected</div>    <div class="s-val" id="s-sel">0</div></div>
   </div>
+
   <div class="toolbar">
     <button class="btn-primary" id="btn-scan">Scan</button>
     <button id="btn-selall" disabled>Select all</button>
@@ -366,15 +406,18 @@ class OrphanCleanerPanel extends HTMLElement {
     <input type="text" id="filter" placeholder="Filter by entity_id or platform…" disabled>
     <button class="btn-danger" id="btn-del" disabled>Delete selected</button>
   </div>
+
   <div class="card">
     <div class="card-header">
       <span class="ch-title" id="tbl-title">No scan performed yet</span>
       <span class="ch-meta"  id="tbl-meta"></span>
     </div>
-    <div id="tbl-wrap"><div class="empty"><p>Press <strong>Scan</strong> to search for orphan entities.</p></div></div>
+    <div id="tbl-wrap"><div class="empty"><p>Premi <strong>Scan</strong> per cercare le entità orfane.</p></div></div>
   </div>
+
   <div class="statusbar" id="statusbar"></div>
   <div class="log-box" id="log-box"></div>
+
   <div class="info-card">
     <h3>Available services</h3>
     <div class="service-row">
@@ -404,11 +447,11 @@ class OrphanCleanerPanel extends HTMLElement {
 
   _attachListeners() {
     const s = this._shadow;
-    s.getElementById("btn-scan").addEventListener("click",    () => this._doScan());
-    s.getElementById("btn-selall").addEventListener("click",  () => this._selAll());
-    s.getElementById("btn-desel").addEventListener("click",   () => this._deselAll());
-    s.getElementById("btn-del").addEventListener("click",     () => this._showConfirm());
-    s.getElementById("btn-cancel").addEventListener("click",  () => this._closeModal());
+    s.getElementById("btn-scan").addEventListener("click", () => this._doScan());
+    s.getElementById("btn-selall").addEventListener("click", () => this._selAll());
+    s.getElementById("btn-desel").addEventListener("click",  () => this._deselAll());
+    s.getElementById("btn-del").addEventListener("click",    () => this._showConfirm());
+    s.getElementById("btn-cancel").addEventListener("click", () => this._closeModal());
     s.getElementById("btn-confirm").addEventListener("click", () => {
       this._closeModal();
       this._doDelete([...this._state.selected]);
@@ -423,4 +466,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-1-0", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel", OrphanCleanerPanel);
