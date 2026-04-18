@@ -45,3 +45,6 @@ EVENT_ORPHANS_FOUND = f"{DOMAIN}_orphans_found"
 PANEL_URL  = "orphan-cleaner"
 PANEL_NAME = "Orphan Cleaner"
 PANEL_ICON = "mdi:broom"
+
+# Versione corrente (usata per cache-busting)
+VERSION = "1.0.6"
