@@ -24,5 +24,25 @@
         }
       }
     }
+  },
+  "services": {
+    "scan": {
+      "name": "Scansiona entità orfane",
+      "description": "Scansiona il registro e restituisce le entità orfane come evento."
+    },
+    "delete_orphans": {
+      "name": "Elimina entità orfane",
+      "description": "Elimina le entità orfane specificate (o tutte se non specificato).",
+      "fields": {
+        "entity_ids": {
+          "name": "Entity IDs",
+          "description": "Lista di entity_id da eliminare. Se omessa, elimina tutte le orfane rilevate."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Se true, simula l'operazione senza modificare nulla."
+        }
+      }
+    }
   }
 }
