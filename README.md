@@ -1,65 +1,65 @@
-# Orphan Entity Cleaner — Custom Integration per Home Assistant
+# Orphan Entity Cleaner — Custom Integration for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue)](https://www.home-assistant.io/)
 
-Integrazione custom (non add-on) che trova e cancella le **entità orfane** — rimaste nel registro dopo la rimozione dell'integrazione che le aveva create — tramite panel web nella sidebar e servizi richiamabili da script e automazioni.
+A custom integration (not an add-on) that finds and deletes **orphan entities** — entities left in the registry after the integration that created them has been removed — via a web panel in the sidebar and services callable from scripts and automations.
 
 ---
 
-## Installazione
+## Installation
 
-### Via HACS (consigliato)
+### Via HACS (recommended)
 
-1. In HACS → **Integrazioni → ⋮ → Repository personalizzati**
-2. Aggiungi l'URL di questo repository, categoria **Integration**
-3. Cerca "Orphan Entity Cleaner" e installa
-4. Riavvia Home Assistant
-5. **Impostazioni → Dispositivi e servizi → Aggiungi integrazione → Orphan Entity Cleaner**
+1. In HACS → **Integrations → ⋮ → Custom repositories**
+2. Add the URL of this repository, category **Integration**
+3. Search for "Orphan Entity Cleaner" and install
+4. Restart Home Assistant
+5. **Settings → Devices & Services → Add Integration → Orphan Entity Cleaner**
 
-### Installazione manuale
+### Manual installation
 
-1. Copia la cartella `custom_components/orphan_cleaner/` in `<config>/custom_components/`
-2. Riavvia Home Assistant
-3. **Impostazioni → Dispositivi e servizi → Aggiungi integrazione → Orphan Entity Cleaner**
+1. Copy the `custom_components/orphan_cleaner/` folder to `<config>/custom_components/`
+2. Restart Home Assistant
+3. **Settings → Devices & Services → Add Integration → Orphan Entity Cleaner**
 
 ---
 
-## Configurazione
+## Configuration
 
-| Parametro | Tipo | Default | Descrizione |
+| Parameter | Type | Default | Description |
 |---|---|---|---|
-| `min_orphan_age_hours` | int (1–720) | `24` | Ore minime da cui l'entità deve avere `orphaned_timestamp` impostato |
-| `aggressive_heuristic` | bool | `false` | Includi anche entità senza `config_entry_id` e piattaforma non manuale |
+| `min_orphan_age_hours` | int (1–720) | `24` | Minimum hours since `orphaned_timestamp` was set on the entity |
+| `aggressive_heuristic` | bool | `false` | Also include entities with no `config_entry_id` and a non-manual platform |
 
-Le opzioni sono modificabili in qualsiasi momento da **Impostazioni → Dispositivi e servizi → Orphan Cleaner → Configura**.
-
----
-
-## Panel web
-
-Dopo l'installazione compare l'icona **Orphan Cleaner** (🧹) nella barra laterale di HA.
-
-Il panel permette di:
-- **Scansionare** il registro con un click
-- **Filtrare** i risultati per entity_id o piattaforma
-- **Selezionare** singolarmente o in blocco
-- **Eliminare** con modale di conferma
-- Visualizzare il **log** delle operazioni in tempo reale
+Options can be changed at any time from **Settings → Devices & Services → Orphan Cleaner → Configure**.
 
 ---
 
-## Servizi
+## Web Panel
+
+After installation, the **Orphan Cleaner** icon (🧹) appears in the HA sidebar.
+
+The panel allows you to:
+- **Scan** the registry with one click
+- **Filter** results by entity_id or platform
+- **Select** entities individually or all at once
+- **Delete** with a confirmation dialog
+- View the **operation log** in real time
+
+---
+
+## Services
 
 ### `orphan_cleaner.scan`
 
-Esegue la scansione e spara l'evento `orphan_cleaner_orphans_found` sul bus di HA.
+Runs the scan and fires the `orphan_cleaner_orphans_found` event on the HA event bus.
 
 ```yaml
 action: orphan_cleaner.scan
 ```
 
-Il payload dell'evento contiene:
+The event payload contains:
 ```yaml
 count: 5
 orphans:
@@ -71,7 +71,7 @@ orphans:
   - ...
 ```
 
-Esempio automazione per notifica:
+Example automation for notification:
 ```yaml
 automation:
   trigger:
@@ -83,31 +83,31 @@ automation:
   action:
     service: notify.mobile_app
     data:
-      title: "Entità orfane rilevate"
-      message: "Trovate {{ trigger.event.data.count }} entità orfane in Home Assistant."
+      title: "Orphan entities detected"
+      message: "Found {{ trigger.event.data.count }} orphan entities in Home Assistant."
 ```
 
 ---
 
 ### `orphan_cleaner.delete_orphans`
 
-Elimina le entità specificate, oppure tutte le orfane rilevate.
+Deletes the specified entities, or all detected orphans if none are specified.
 
-| Campo | Tipo | Obbligatorio | Descrizione |
+| Field | Type | Required | Description |
 |---|---|---|---|
-| `entity_ids` | list | No | Entity ID da eliminare. Se omesso → tutte le orfane |
-| `dry_run` | bool | No (default `false`) | Log senza modificare nulla |
+| `entity_ids` | list | No | Entity IDs to delete. If omitted → all orphans |
+| `dry_run` | bool | No (default `false`) | Log only, without making any changes |
 
 ```yaml
-# Elimina tutte le orfane
+# Delete all orphans
 action: orphan_cleaner.delete_orphans
 
-# Dry run: vedi solo i log
+# Dry run: log only
 action: orphan_cleaner.delete_orphans
 data:
   dry_run: true
 
-# Elimina entità specifiche
+# Delete specific entities
 action: orphan_cleaner.delete_orphans
 data:
   entity_ids:
@@ -117,51 +117,60 @@ data:
 
 ---
 
-## Come funziona il rilevamento
+## How Detection Works
 
-### Metodo 1 — `orphaned_timestamp` (affidabile)
+### Method 1 — `orphaned_timestamp` (reliable)
 
-HA imposta questo campo nel registry quando, dopo un riavvio completo, un'entità non viene reclamata da nessuna integrazione. È il segnale ufficiale e viene usato sempre.
+HA sets this field in the registry when, after a full restart, an entity is not claimed by any integration. This is the official signal and is always used.
 
-Il parametro `min_orphan_age_hours` filtra le entità troppo recenti (es. integrazione temporaneamente offline).
+The `min_orphan_age_hours` parameter filters out entities that are too recent (e.g. an integration that is temporarily offline).
 
-### Metodo 2 — Euristica (opzionale)
+### Method 2 — Dead config entry
 
-Attivato da `aggressive_heuristic: true`. Considera orfane anche le entità senza `config_entry_id` e con piattaforma non in questa lista di esclusioni:
+If an entity's `config_entry_id` points to a config entry that no longer exists, the entity is considered an orphan.
+
+### Method 3 — Unavailable state
+
+Entities in `unavailable` state for longer than `min_orphan_age_hours` are flagged. This catches entities like those from `ble_monitor` that HA marks with the yellow warning "no longer provided by the integration".
+
+### Method 4 — Heuristic (optional)
+
+Enabled by `aggressive_heuristic: true`. Also considers as orphans entities with no `config_entry_id` and a platform not in this exclusion list:
 
 `template`, `input_boolean`, `input_number`, `input_text`, `input_select`, `input_datetime`, `input_button`, `counter`, `timer`, `schedule`, `group`, `persistent_notification`, `script`, `automation`, `scene`, `zone`, `person`, `tag`
 
 ---
 
-## Struttura
+## File Structure
 
 ```
 custom_components/orphan_cleaner/
-├── __init__.py           ← setup, panel, teardown
-├── config_flow.py        ← UI configurazione e opzioni
-├── const.py              ← costanti
-├── manifest.json         ← metadati integrazione
-├── orphan_detector.py    ← logica rilevamento e cancellazione
-├── panel_api.py          ← view HTTP (panel + API REST interna)
-├── services.py           ← servizi HA (scan, delete_orphans)
-├── services.yaml         ← documentazione servizi per Developer Tools
-├── strings.json          ← etichette UI
+├── __init__.py           ← setup, panel registration, teardown
+├── config_flow.py        ← configuration and options UI
+├── const.py              ← constants
+├── manifest.json         ← integration metadata
+├── orphan_detector.py    ← detection and deletion logic
+├── panel_api.py          ← HTTP views (panel + internal REST API)
+├── services.py           ← HA services (scan, delete_orphans)
+├── services.yaml         ← service documentation for Developer Tools
+├── strings.json          ← UI labels
 ├── translations/
 │   └── en.json
 └── frontend/
-    └── panel.html        ← interfaccia web completa
+    ├── panel.html        ← full web interface
+    └── orphan-cleaner-panel.js
 ```
 
 ---
 
-## Avvertenze
+## Warnings
 
-- **Fai sempre un backup** prima di eliminare entità in blocco.
-- Le entità cancellate vengono rimosse dal **registry**: i dati storici nel **recorder** rimangono ma non sono più associati a un'entità attiva. Per pulire anche il DB usa `recorder.purge_entities`.
-- Un'entità con `orphaned_timestamp` potrebbe appartenere a un'integrazione temporaneamente offline: aumenta `min_orphan_age_hours` se hai integrazioni instabili.
+- **Always make a backup** before deleting entities in bulk.
+- Deleted entities are removed from the **registry**: historical data in the **recorder** remains but is no longer associated with an active entity. To clean the database as well, use `recorder.purge_entities`.
+- An entity with `orphaned_timestamp` may belong to an integration that is temporarily offline: increase `min_orphan_age_hours` if you have unstable integrations.
 
 ---
 
-## Licenza
+## License
 
 MIT
