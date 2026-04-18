@@ -3,24 +3,24 @@
     "step": {
       "user": {
         "title": "Orphan Entity Cleaner",
-        "description": "Configura i parametri di rilevamento delle entità orfane.",
+        "description": "Configure the orphan entity detection parameters.",
         "data": {
-          "min_orphan_age_hours": "Età minima orfana (ore)",
-          "aggressive_heuristic": "Euristica aggressiva"
+          "min_orphan_age_hours": "Minimum orphan age (hours)",
+          "aggressive_heuristic": "Aggressive heuristic"
         }
       }
     },
     "abort": {
-      "already_configured": "Integrazione già configurata"
+      "already_configured": "Integration already configured"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Opzioni Orphan Cleaner",
+        "title": "Orphan Cleaner Options",
         "data": {
-          "min_orphan_age_hours": "Età minima orfana (ore)",
-          "aggressive_heuristic": "Euristica aggressiva"
+          "min_orphan_age_hours": "Minimum orphan age (hours)",
+          "aggressive_heuristic": "Aggressive heuristic"
         }
       }
     }

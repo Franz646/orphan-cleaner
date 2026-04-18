@@ -3,44 +3,44 @@
     "step": {
       "user": {
         "title": "Orphan Entity Cleaner",
-        "description": "Configura i parametri di rilevamento delle entità orfane.",
+        "description": "Configure the orphan entity detection parameters.",
         "data": {
-          "min_orphan_age_hours": "Età minima orfana (ore)",
-          "aggressive_heuristic": "Euristica aggressiva"
+          "min_orphan_age_hours": "Minimum orphan age (hours)",
+          "aggressive_heuristic": "Aggressive heuristic"
         }
       }
     },
     "abort": {
-      "already_configured": "Integrazione già configurata"
+      "already_configured": "Integration already configured"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Opzioni Orphan Cleaner",
+        "title": "Orphan Cleaner Options",
         "data": {
-          "min_orphan_age_hours": "Età minima orfana (ore)",
-          "aggressive_heuristic": "Euristica aggressiva"
+          "min_orphan_age_hours": "Minimum orphan age (hours)",
+          "aggressive_heuristic": "Aggressive heuristic"
         }
       }
     }
   },
   "services": {
     "scan": {
-      "name": "Scansiona entità orfane",
-      "description": "Scansiona il registro e restituisce le entità orfane come evento."
+      "name": "Scan orphan entities",
+      "description": "Scans the registry and returns orphan entities as an event."
     },
     "delete_orphans": {
-      "name": "Elimina entità orfane",
-      "description": "Elimina le entità orfane specificate (o tutte se non specificato).",
+      "name": "Delete orphan entities",
+      "description": "Deletes the specified orphan entities (or all if none specified).",
       "fields": {
         "entity_ids": {
           "name": "Entity IDs",
-          "description": "Lista di entity_id da eliminare. Se omessa, elimina tutte le orfane rilevate."
+          "description": "List of entity_ids to delete. If omitted, all detected orphans are deleted."
         },
         "dry_run": {
           "name": "Dry run",
-          "description": "Se true, simula l'operazione senza modificare nulla."
+          "description": "If true, simulates the operation without making any changes."
         }
       }
     }
