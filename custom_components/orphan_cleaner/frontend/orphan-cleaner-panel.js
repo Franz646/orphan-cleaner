@@ -22,6 +22,15 @@ class OrphanCleanerPanel extends HTMLElement {
     this._hass = hass;
   }
 
+  connectedCallback() {
+    // HA reinserisce il componente nel DOM quando si torna al panel.
+    // Se lo shadow DOM è stato svuotato, ri-renderizza e ripristina lo stato.
+    if (!this._shadow.getElementById("btn-scan")) {
+      this._render();
+      this._updateAll();
+    }
+  }
+
   // ── Chiamate API ───────────────────────────────────────────────────
   async _apiFetch(path, options = {}) {
     const token = this._hass.auth.data.access_token;
@@ -466,4 +475,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-1-2", OrphanCleanerPanel);
