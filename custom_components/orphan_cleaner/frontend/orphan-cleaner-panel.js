@@ -153,7 +153,7 @@ class OrphanCleanerPanel extends HTMLElement {
     const filterEl = this._shadow.getElementById("filter");
     if (filterEl) filterEl.disabled = !has;
     const scanBtn = this._shadow.getElementById("btn-scan");
-    if (scanBtn) scanBtn.textContent = s.scanning ? "Scanning…" : "Scansiona";
+    if (scanBtn) scanBtn.textContent = s.scanning ? "Scanning…" : "Scan";
   }
   _setDisabled(id, val) {
     const el = this._shadow.getElementById(id);
@@ -412,7 +412,7 @@ class OrphanCleanerPanel extends HTMLElement {
       <span class="ch-title" id="tbl-title">No scan performed yet</span>
       <span class="ch-meta"  id="tbl-meta"></span>
     </div>
-    <div id="tbl-wrap"><div class="empty"><p>Premi <strong>Scan</strong> per cercare le entità orfane.</p></div></div>
+    <div id="tbl-wrap"><div class="empty"><p>Press <strong>Scan</strong> to search for orphan entities.</p></div></div>
   </div>
 
   <div class="statusbar" id="statusbar"></div>
