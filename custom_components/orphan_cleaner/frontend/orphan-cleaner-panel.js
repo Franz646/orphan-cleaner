@@ -23,9 +23,40 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 
   connectedCallback() {
-    // HA reinserisce il componente nel DOM quando si torna al panel.
-    // Se lo shadow DOM è stato svuotato, ri-renderizza e ripristina lo stato.
+    // Ri-renderizza se lo shadow DOM è stato svuotato
     if (!this._shadow.getElementById("btn-scan")) {
+      this._render();
+      this._updateAll();
+    }
+    // Intercetta il ritorno al panel via visibilitychange
+    this._onVisible = () => {
+      if (!document.hidden) this._checkAndRepaint();
+    };
+    this._onFocus = () => this._checkAndRepaint();
+    document.addEventListener("visibilitychange", this._onVisible);
+    window.addEventListener("focus", this._onFocus);
+  }
+
+  disconnectedCallback() {
+    document.removeEventListener("visibilitychange", this._onVisible);
+    window.removeEventListener("focus", this._onFocus);
+  }
+
+  _checkAndRepaint() {
+    // Se il componente è nel DOM ma lo schermo è nero, forza il repaint
+    if (this.isConnected && this._shadow.getElementById("btn-scan")) {
+      const wrap = this._shadow.getElementById("tbl-wrap");
+      if (wrap && wrap.offsetHeight === 0) {
+        this._updateAll();
+      }
+      // Forza reflow sul contenitore principale
+      const main = this._shadow.querySelector(".main");
+      if (main) {
+        main.style.display = "none";
+        void main.offsetHeight; // trigger reflow
+        main.style.display = "";
+      }
+    } else if (this.isConnected) {
       this._render();
       this._updateAll();
     }
@@ -475,4 +506,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-1-2", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-1-3", OrphanCleanerPanel);
