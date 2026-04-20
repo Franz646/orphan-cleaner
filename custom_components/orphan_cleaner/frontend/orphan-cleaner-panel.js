@@ -4,9 +4,10 @@
 class OrphanCleanerPanel extends HTMLElement {
   constructor() {
     super();
-    this._hass   = null;
-    this._shadow = this.attachShadow({ mode: "open" });
-    this._state  = {
+    this._hass      = null;
+    this._rendered  = false;
+    this._shadow    = this.attachShadow({ mode: "open" });
+    this._state     = {
       allOrphans: [],
       selected:   new Set(),
       scanning:   false,
@@ -15,16 +16,27 @@ class OrphanCleanerPanel extends HTMLElement {
       scannedAt:  null,
       total:      null,
     };
-    this._render();
   }
 
   set hass(hass) {
     this._hass = hass;
+    // Renderizza al primo set hass — garantisce che il token sia disponibile
+    if (!this._rendered) {
+      this._rendered = true;
+      this._render();
+      this._updateAll();
+    }
   }
 
   connectedCallback() {
-    // Ri-renderizza se lo shadow DOM è stato svuotato
-    if (!this._shadow.getElementById("btn-scan")) {
+    // Se _hass è già disponibile ma non abbiamo ancora renderizzato, fallo ora
+    if (this._hass && !this._rendered) {
+      this._rendered = true;
+      this._render();
+      this._updateAll();
+    }
+    // Se era già renderizzato ma lo shadow è stato svuotato, ri-renderizza
+    if (this._rendered && !this._shadow.getElementById("btn-scan")) {
       this._render();
       this._updateAll();
     }
@@ -506,4 +518,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-1-3", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-1-4", OrphanCleanerPanel);
