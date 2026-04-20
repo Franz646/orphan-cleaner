@@ -25,7 +25,6 @@ class OrphanCleanerPanel extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    // Renderizza al primo set hass — garantisce che il token sia disponibile
     if (!this._rendered) {
       this._rendered = true;
       this._render();
@@ -33,51 +32,8 @@ class OrphanCleanerPanel extends HTMLElement {
     }
   }
 
-  connectedCallback() {
-    // Se _hass è già disponibile ma non abbiamo ancora renderizzato, fallo ora
-    if (this._hass && !this._rendered) {
-      this._rendered = true;
-      this._render();
-      this._updateAll();
-    }
-    // Se era già renderizzato ma lo shadow è stato svuotato, ri-renderizza
-    if (this._rendered && !this._shadow.getElementById("btn-scan")) {
-      this._render();
-      this._updateAll();
-    }
-    // Intercetta il ritorno al panel via visibilitychange
-    this._onVisible = () => {
-      if (!document.hidden) this._checkAndRepaint();
-    };
-    this._onFocus = () => this._checkAndRepaint();
-    document.addEventListener("visibilitychange", this._onVisible);
-    window.addEventListener("focus", this._onFocus);
-  }
-
   disconnectedCallback() {
-    document.removeEventListener("visibilitychange", this._onVisible);
-    window.removeEventListener("focus", this._onFocus);
     if (this._onKeydown) document.removeEventListener("keydown", this._onKeydown);
-  }
-
-  _checkAndRepaint() {
-    // Se il componente è nel DOM ma lo schermo è nero, forza il repaint
-    if (this.isConnected && this._shadow.getElementById("btn-scan")) {
-      const wrap = this._shadow.getElementById("tbl-wrap");
-      if (wrap && wrap.offsetHeight === 0) {
-        this._updateAll();
-      }
-      // Forza reflow sul contenitore principale
-      const main = this._shadow.querySelector(".main");
-      if (main) {
-        main.style.display = "none";
-        void main.offsetHeight; // trigger reflow
-        main.style.display = "";
-      }
-    } else if (this.isConnected) {
-      this._render();
-      this._updateAll();
-    }
   }
 
   // ── Chiamate API ───────────────────────────────────────────────────
@@ -553,4 +509,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-1-6", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-1-7", OrphanCleanerPanel);
