@@ -52,6 +52,7 @@ class OrphanCleanerPanel extends HTMLElement {
   disconnectedCallback() {
     document.removeEventListener("visibilitychange", this._onVisible);
     window.removeEventListener("focus", this._onFocus);
+    if (this._onKeydown) document.removeEventListener("keydown", this._onKeydown);
   }
 
   _checkAndRepaint() {
@@ -294,7 +295,7 @@ class OrphanCleanerPanel extends HTMLElement {
 <style>
   :host { display: block; font-family: var(--primary-font-family, sans-serif);
     background: var(--primary-background-color, #111); color: var(--primary-text-color, #eee);
-    min-height: 100vh; }
+    min-height: 100%; box-sizing: border-box; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   --c-green:    #1D9E75;
@@ -404,7 +405,8 @@ class OrphanCleanerPanel extends HTMLElement {
     padding: 0 2px 14px; display: flex; gap: 10px; align-items: center; }
 
   .overlay-wrap { position: fixed; inset: 0; background: rgba(0,0,0,0.55);
-    display: none; align-items: center; justify-content: center; z-index: 999; }
+    display: none; align-items: center; justify-content: center; z-index: 999;
+    -webkit-overflow-scrolling: touch; }
   .overlay-wrap.show { display: flex; }
   .modal { background: var(--card-background-color, #1e1f21);
     border: 1px solid var(--divider-color, rgba(255,255,255,0.18));
@@ -514,8 +516,10 @@ class OrphanCleanerPanel extends HTMLElement {
       s.getElementById("tbl-meta").textContent =
         q ? `${this._filtered().length} of ${this._state.allOrphans.length}` : "";
     });
-    document.addEventListener("keydown", e => { if (e.key === "Escape") this._closeModal(); });
+    // Escape key: scoped to shadow, cleaned up on disconnect
+    this._onKeydown = e => { if (e.key === "Escape") this._closeModal(); };
+    document.addEventListener("keydown", this._onKeydown);
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-1-4", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-1-5", OrphanCleanerPanel);
