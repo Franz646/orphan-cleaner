@@ -19,7 +19,21 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 
   set hass(hass) {
+    const first = !this._hass;
     this._hass = hass;
+    // On Android/WebView, hass is set after the element is connected
+    // but the shadow DOM may be empty — render on first hass assignment
+    if (first && !this._shadow.getElementById("btn-scan")) {
+      this._render();
+      this._updateAll();
+    }
+  }
+
+  connectedCallback() {
+    if (!this._shadow.getElementById("btn-scan")) {
+      this._render();
+      this._updateAll();
+    }
   }
 
   // ── Chiamate API ───────────────────────────────────────────────────
@@ -466,4 +480,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-3-0", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-3-1", OrphanCleanerPanel);
