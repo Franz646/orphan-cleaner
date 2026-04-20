@@ -8,13 +8,18 @@ class OrphanCleanerPanel extends HTMLElement {
     this._rendered  = false;
     this._shadow    = this.attachShadow({ mode: "open" });
     this._state     = {
-      allOrphans: [],
-      selected:   new Set(),
-      scanning:   false,
-      deleting:   false,
-      logs:       [],
-      scannedAt:  null,
-      total:      null,
+      allOrphans:         [],
+      selected:           new Set(),
+      scanning:           false,
+      deleting:           false,
+      logs:               [],
+      scannedAt:          null,
+      total:              null,
+      // detection options
+      useTimestamp:       true,   // always on
+      useDeadEntry:       true,
+      useUnavailable:     false,  // off by default — causes false positives
+      useHeuristic:       false,
     };
   }
 
@@ -428,6 +433,16 @@ class OrphanCleanerPanel extends HTMLElement {
     white-space: nowrap; flex-shrink: 0; color: #1D9E75; }
   .svc-desc { font-size: 12px; color: var(--secondary-text-color, #9aa0a6); line-height: 1.6; }
 
+  .options-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px;
+    background: var(--secondary-background-color, #2a2b2d);
+    border: 1px solid var(--divider-color, rgba(255,255,255,0.1));
+    border-radius: 8px; padding: 10px 14px; align-items: center; }
+  .opt-label { font-size: 12px; color: var(--secondary-text-color, #9aa0a6);
+    margin-right: 4px; font-weight: 500; }
+  .opt-item { display: flex; align-items: center; gap: 6px; font-size: 12px;
+    color: var(--primary-text-color, #eee); cursor: pointer; user-select: none; }
+  .opt-item input[type="checkbox"] { width: 14px; height: 14px; accent-color: #1D9E75; }
+  .opt-item.disabled { opacity: 0.4; cursor: not-allowed; }
   @media (max-width: 600px) {
     .stat-row { grid-template-columns: 1fr 1fr; }
     .th-method, .td-method, .th-age, .td-age { display: none; }
@@ -451,6 +466,22 @@ class OrphanCleanerPanel extends HTMLElement {
     <div class="stat s-danger"> <div class="s-label">Orphans found</div> <div class="s-val" id="s-orphan">—</div></div>
     <div class="stat s-warn">   <div class="s-label">Heuristic</div><div class="s-val" id="s-heur">—</div></div>
     <div class="stat s-ok">     <div class="s-label">Selected</div>    <div class="s-val" id="s-sel">0</div></div>
+  </div>
+
+  <div class="options-row">
+    <span class="opt-label">Detection methods:</span>
+    <label class="opt-item disabled" title="Always active — most reliable method">
+      <input type="checkbox" checked disabled> orphaned_timestamp
+    </label>
+    <label class="opt-item" title="Entities whose integration no longer exists">
+      <input type="checkbox" id="chk-dead" checked> dead config entry
+    </label>
+    <label class="opt-item" title="Disabled by default — may cause false positives on reboot">
+      <input type="checkbox" id="chk-unavail"> unavailable state
+    </label>
+    <label class="opt-item" id="opt-heur-wrap" title="Only shown if aggressive heuristic is enabled in integration options">
+      <input type="checkbox" id="chk-heur"> heuristic
+    </label>
   </div>
 
   <div class="toolbar">
@@ -522,4 +553,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-1-5", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-1-6", OrphanCleanerPanel);

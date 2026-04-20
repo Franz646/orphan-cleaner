@@ -46,6 +46,8 @@ def detect_orphans(
     hass: HomeAssistant,
     min_age_hours: int = 24,
     aggressive: bool = False,
+    include_dead_entry: bool = True,
+    include_unavailable: bool = False,
 ) -> list[OrphanInfo]:
     """
     Scansiona registry e stati, restituisce le entità orfane.
@@ -93,7 +95,7 @@ def detect_orphans(
             continue
 
         # ── Metodo 2: config entry rimossa ────────────────────────────
-        if cfg_entry_id and cfg_entry_id not in active_entry_ids:
+        if include_dead_entry and cfg_entry_id and cfg_entry_id not in active_entry_ids:
             orphans.append(OrphanInfo(
                 entity_id   = entry.entity_id,
                 platform    = platform or "—",
@@ -106,7 +108,9 @@ def detect_orphans(
         # ── Metodo 3: stato unavailable + registry non aggiornato ────
         # Salta piattaforme che sono spesso unavailable per natura
         # e entità disabilitate
-        if platform in ALWAYS_UNAVAILABLE_PLATFORMS:
+        if not include_unavailable:
+            pass
+        elif platform in ALWAYS_UNAVAILABLE_PLATFORMS:
             pass
         elif entry.disabled_by is not None:
             pass
