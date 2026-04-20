@@ -1,4 +1,4 @@
-"""Config flow per Orphan Entity Cleaner."""
+"""Config flow for Orphan Entity Cleaner."""
 from __future__ import annotations
 
 import voluptuous as vol
@@ -24,12 +24,11 @@ STEP_USER_SCHEMA = vol.Schema(
 
 
 class OrphanCleanerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Gestisce il config flow dell'integrazione."""
+    """Handle the integration config flow."""
 
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Step iniziale mostrato all'utente."""
         if self._async_current_entries():
             return self.async_abort(reason="already_configured")
 
@@ -47,14 +46,11 @@ class OrphanCleanerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return OrphanCleanerOptionsFlow(config_entry)
+        return OrphanCleanerOptionsFlow()
 
 
 class OrphanCleanerOptionsFlow(config_entries.OptionsFlow):
-    """Gestisce le opzioni modificabili dopo l'installazione."""
-
-    def __init__(self, config_entry):
-        self._entry = config_entry
+    """Handle options flow."""
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
@@ -64,16 +60,16 @@ class OrphanCleanerOptionsFlow(config_entries.OptionsFlow):
             {
                 vol.Required(
                     CONF_MIN_AGE_HOURS,
-                    default=self._entry.options.get(
+                    default=self.config_entry.options.get(
                         CONF_MIN_AGE_HOURS,
-                        self._entry.data.get(CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS),
+                        self.config_entry.data.get(CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS),
                     ),
                 ): vol.All(int, vol.Range(min=1, max=720)),
                 vol.Required(
                     CONF_AGGRESSIVE,
-                    default=self._entry.options.get(
+                    default=self.config_entry.options.get(
                         CONF_AGGRESSIVE,
-                        self._entry.data.get(CONF_AGGRESSIVE, DEFAULT_AGGRESSIVE),
+                        self.config_entry.data.get(CONF_AGGRESSIVE, DEFAULT_AGGRESSIVE),
                     ),
                 ): bool,
             }
