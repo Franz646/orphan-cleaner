@@ -3,10 +3,11 @@ Orphan entity detection logic.
 Operates directly on the HA entity registry and states.
 
 Detection methods:
-  1. orphaned_timestamp  — official HA field
-  2. dead_config_entry   — config_entry_id points to a removed integration
-  3. unavailable_state   — unavailable state for more than N hours
-  4. heuristic           — no config_entry_id and non-manual platform
+  1. orphaned_timestamp  — official HA field (non-null)
+  2. dead_config_entry   — config_entry_id points to a removed config entry
+  3. unloaded_platform   — platform integration is no longer loaded in HA
+  4. unavailable_state   — unavailable for more than N hours
+  5. heuristic           — no config_entry_id and non-manual platform
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from datetime import datetime, timezone
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.loader import async_get_loaded_integrations
 
 from .const import MANUAL_PLATFORMS
 
@@ -25,6 +27,12 @@ _LOGGER = logging.getLogger(__name__)
 ALWAYS_UNAVAILABLE_PLATFORMS = {
     "template", "group", "universal", "input_boolean",
 }
+
+# Platforms that are always present in HA core — never orphans
+CORE_PLATFORMS = {
+    "homeassistant", "persistent_notification", "recorder",
+    "frontend", "history", "logbook", "system_log", "mobile_app",
+} | MANUAL_PLATFORMS
 
 
 @dataclass
@@ -45,37 +53,36 @@ def detect_orphans(
     min_age_hours: int = 24,
     aggressive: bool = False,
 ) -> list[OrphanInfo]:
+
     entity_registry  = er.async_get(hass)
     now              = time.time()
     orphans: list[OrphanInfo] = []
 
+    # Active config entry IDs
     active_entry_ids: set[str] = {
         e.entry_id for e in hass.config_entries.async_entries()
     }
 
-    # Debug: log first entry fields to detect HA version changes
-    sample = next(iter(entity_registry.entities.values()), None)
-    if sample:
-        ts_val = getattr(sample, "orphaned_timestamp", "FIELD_MISSING")
-        _LOGGER.debug(
-            "Sample entity %s — orphaned_timestamp field: %s, platform: %s, config_entry_id: %s",
-            sample.entity_id, ts_val, sample.platform, sample.config_entry_id,
-        )
+    # Currently loaded integration domains
+    loaded_integrations: set[str] = async_get_loaded_integrations(hass)
+
+    _LOGGER.debug(
+        "Scan start: %d entities, %d active config entries, %d loaded integrations",
+        len(entity_registry.entities), len(active_entry_ids), len(loaded_integrations),
+    )
+
+    seen: set[str] = set()
 
     for entry in entity_registry.entities.values():
         platform     = entry.platform or ""
         cfg_entry_id = entry.config_entry_id
 
-        # ── Method 1: orphaned_timestamp ──────────────────────────────
+        # ── Method 1: orphaned_timestamp (non-null) ───────────────────
         ts = getattr(entry, "orphaned_timestamp", None)
         if ts is not None:
             age_h = (now - ts) / 3600
-            _LOGGER.debug(
-                "orphaned_timestamp: %s age=%.1fh min=%d → %s",
-                entry.entity_id, age_h, min_age_hours,
-                "INCLUDE" if age_h >= min_age_hours else "TOO RECENT"
-            )
             if age_h >= min_age_hours:
+                _LOGGER.debug("M1 timestamp: %s age=%.1fh", entry.entity_id, age_h)
                 orphans.append(OrphanInfo(
                     entity_id   = entry.entity_id,
                     platform    = platform or "—",
@@ -84,11 +91,12 @@ def detect_orphans(
                     disabled_by = entry.disabled_by,
                     state       = "orphaned",
                 ))
-            continue
+                seen.add(entry.entity_id)
+            continue  # skip other methods regardless of age
 
         # ── Method 2: dead config entry ───────────────────────────────
         if cfg_entry_id and cfg_entry_id not in active_entry_ids:
-            _LOGGER.debug("dead_entry: %s cfg=%s", entry.entity_id, cfg_entry_id)
+            _LOGGER.debug("M2 dead_entry: %s cfg=%s", entry.entity_id, cfg_entry_id)
             orphans.append(OrphanInfo(
                 entity_id   = entry.entity_id,
                 platform    = platform or "—",
@@ -96,9 +104,34 @@ def detect_orphans(
                 age_hours   = None,
                 disabled_by = entry.disabled_by,
             ))
+            seen.add(entry.entity_id)
             continue
 
-        # ── Method 3: unavailable state ───────────────────────────────
+        # ── Method 3: platform integration no longer loaded ───────────
+        # Catches entities whose config entry still exists but the
+        # underlying integration (e.g. esphome, shelly) was removed.
+        if (
+            platform
+            and platform not in CORE_PLATFORMS
+            and platform not in loaded_integrations
+        ):
+            # Verify the config entry domain matches the platform
+            cfg_entry = None
+            if cfg_entry_id:
+                cfg_entry = hass.config_entries.async_get_entry(cfg_entry_id)
+            if cfg_entry is None or cfg_entry.domain not in loaded_integrations:
+                _LOGGER.debug("M3 unloaded_platform: %s platform=%s", entry.entity_id, platform)
+                orphans.append(OrphanInfo(
+                    entity_id   = entry.entity_id,
+                    platform    = platform or "—",
+                    method      = "unloaded_platform",
+                    age_hours   = None,
+                    disabled_by = entry.disabled_by,
+                ))
+                seen.add(entry.entity_id)
+                continue
+
+        # ── Method 4: unavailable state ───────────────────────────────
         if platform not in ALWAYS_UNAVAILABLE_PLATFORMS and entry.disabled_by is None:
             state_obj = hass.states.get(entry.entity_id)
             if state_obj and state_obj.state == "unavailable":
@@ -112,7 +145,7 @@ def detect_orphans(
                         if created_at else 0
                     )
                 if age_h >= min_age_hours:
-                    _LOGGER.debug("unavailable: %s age=%.1fh", entry.entity_id, age_h)
+                    _LOGGER.debug("M4 unavailable: %s age=%.1fh", entry.entity_id, age_h)
                     orphans.append(OrphanInfo(
                         entity_id   = entry.entity_id,
                         platform    = platform or "—",
@@ -121,25 +154,28 @@ def detect_orphans(
                         disabled_by = entry.disabled_by,
                         state       = "unavailable",
                     ))
+                    seen.add(entry.entity_id)
                     continue
 
-        # ── Method 4: heuristic ───────────────────────────────────────
+        # ── Method 5: heuristic ───────────────────────────────────────
         if aggressive and not cfg_entry_id and platform and platform not in MANUAL_PLATFORMS:
-            _LOGGER.debug("heuristic: %s platform=%s", entry.entity_id, platform)
-            orphans.append(OrphanInfo(
-                entity_id   = entry.entity_id,
-                platform    = platform,
-                method      = "heuristic",
-                age_hours   = None,
-                disabled_by = entry.disabled_by,
-            ))
+            if entry.entity_id not in seen:
+                _LOGGER.debug("M5 heuristic: %s platform=%s", entry.entity_id, platform)
+                orphans.append(OrphanInfo(
+                    entity_id   = entry.entity_id,
+                    platform    = platform,
+                    method      = "heuristic",
+                    age_hours   = None,
+                    disabled_by = entry.disabled_by,
+                ))
 
     _LOGGER.info(
-        "Scan: %d total entities, %d orphans "
-        "(timestamp:%d dead_entry:%d unavailable:%d heuristic:%d)",
+        "Scan complete: %d total, %d orphans "
+        "(timestamp:%d dead_entry:%d unloaded:%d unavailable:%d heuristic:%d)",
         len(entity_registry.entities), len(orphans),
         sum(1 for o in orphans if o.method == "timestamp"),
         sum(1 for o in orphans if o.method == "dead_entry"),
+        sum(1 for o in orphans if o.method == "unloaded_platform"),
         sum(1 for o in orphans if o.method == "unavailable"),
         sum(1 for o in orphans if o.method == "heuristic"),
     )
