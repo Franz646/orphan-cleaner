@@ -480,4 +480,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-3-1", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-3-2", OrphanCleanerPanel);
