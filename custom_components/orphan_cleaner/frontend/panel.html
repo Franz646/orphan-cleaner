@@ -341,8 +341,7 @@ async function doScan() {
   document.getElementById('log-box').innerHTML = '';
   selected.clear(); updateSelCount();
   try {
-    const token = localStorage.getItem('hassTokens') ? JSON.parse(localStorage.getItem('hassTokens')).access_token : '';
-    const r = await fetch('/api/orphan_cleaner/scan', {headers: token ? {'Authorization': 'Bearer '+token} : {}});
+    const r    = await fetch('/api/orphan_cleaner/scan');
     if (!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
     if (data.error) throw new Error(data.error);
@@ -386,8 +385,7 @@ async function doDelete() {
   addLog('Deleting '+ids.length+' entities…','info');
   setStatus('Deletion in progress…');
   try {
-    const token2 = localStorage.getItem('hassTokens') ? JSON.parse(localStorage.getItem('hassTokens')).access_token : '';
-    const r = await fetch('/api/orphan_cleaner/delete', {
+    const r    = await fetch('/api/orphan_cleaner/delete', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({entity_ids: ids})
     });
