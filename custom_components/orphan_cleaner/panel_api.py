@@ -25,7 +25,7 @@ class OrphanCleanerIndexView(HomeAssistantView):
 
     url          = "/api/orphan_cleaner/panel"
     name         = "api:orphan_cleaner:panel"
-    requires_auth = True
+    requires_auth = False
 
     async def get(self, request: web.Request) -> web.Response:
         html = await request.loop.run_in_executor(
@@ -39,7 +39,7 @@ class OrphanCleanerScanView(HomeAssistantView):
 
     url          = "/api/orphan_cleaner/scan"
     name         = "api:orphan_cleaner:scan"
-    requires_auth = True
+    requires_auth = False
 
     async def get(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
@@ -80,7 +80,7 @@ class OrphanCleanerDeleteView(HomeAssistantView):
 
     url          = "/api/orphan_cleaner/delete"
     name         = "api:orphan_cleaner:delete"
-    requires_auth = True
+    requires_auth = False
 
     async def post(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
