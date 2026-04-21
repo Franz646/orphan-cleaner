@@ -28,11 +28,12 @@
   "services": {
     "scan": {
       "name": "Scan orphan entities",
-      "description": "Scans the registry and returns orphan entities as an event."
+      "description": "Scans the registry and fires the orphan_cleaner_orphans_found event.",
+      "fields": {}
     },
     "delete_orphans": {
       "name": "Delete orphan entities",
-      "description": "Deletes the specified orphan entities (or all if none specified).",
+      "description": "Deletes the specified orphan entities, or all detected orphans if none specified.",
       "fields": {
         "entity_ids": {
           "name": "Entity IDs",
