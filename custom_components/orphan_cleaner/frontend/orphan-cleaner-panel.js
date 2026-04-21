@@ -16,7 +16,10 @@ class OrphanCleanerPanel extends HTMLElement {
       scannedAt:  null,
       total:      null,
     };
-    // Do NOT render in constructor — wait for hass to be available
+    // Show placeholder immediately so we know JS is loaded
+    this._shadow.innerHTML = `<div style="padding:20px;color:#9aa0a6;font-family:sans-serif">
+      Loading Orphan Entity Cleaner…
+    </div>`;
   }
 
   set hass(hass) {
@@ -492,4 +495,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-3-3", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-3-4", OrphanCleanerPanel);
