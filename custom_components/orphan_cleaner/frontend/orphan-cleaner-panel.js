@@ -23,8 +23,14 @@ class OrphanCleanerPanel extends HTMLElement {
     this._hass = hass;
     if (!this._rendered) {
       this._rendered = true;
-      this._render();
-      this._updateAll();
+      try {
+        this._render();
+        this._updateAll();
+      } catch(e) {
+        this._shadow.innerHTML = `<div style="color:red;padding:20px;font-family:monospace">
+          <b>Orphan Cleaner render error:</b><br>${e.message}<br><pre>${e.stack}</pre>
+        </div>`;
+      }
     }
   }
 
@@ -486,4 +492,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-3-2", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-3-3", OrphanCleanerPanel);
