@@ -4,9 +4,10 @@
 class OrphanCleanerPanel extends HTMLElement {
   constructor() {
     super();
-    this._hass   = null;
-    this._shadow = this.attachShadow({ mode: "open" });
-    this._state  = {
+    this._hass     = null;
+    this._rendered = false;
+    this._shadow   = this.attachShadow({ mode: "open" });
+    this._state    = {
       allOrphans: [],
       selected:   new Set(),
       scanning:   false,
@@ -15,22 +16,27 @@ class OrphanCleanerPanel extends HTMLElement {
       scannedAt:  null,
       total:      null,
     };
-    this._render();
+    // Do NOT render in constructor — wait for hass to be available
   }
 
   set hass(hass) {
-    const first = !this._hass;
     this._hass = hass;
-    // On Android/WebView, hass is set after the element is connected
-    // but the shadow DOM may be empty — render on first hass assignment
-    if (first && !this._shadow.getElementById("btn-scan")) {
+    if (!this._rendered) {
+      this._rendered = true;
       this._render();
       this._updateAll();
     }
   }
 
   connectedCallback() {
-    if (!this._shadow.getElementById("btn-scan")) {
+    // Fallback: if hass was already set but render didn't happen
+    if (this._hass && !this._rendered) {
+      this._rendered = true;
+      this._render();
+      this._updateAll();
+    }
+    // If coming back from another page, repaint
+    if (this._rendered && !this._shadow.getElementById("btn-scan")) {
       this._render();
       this._updateAll();
     }
@@ -480,4 +486,4 @@ class OrphanCleanerPanel extends HTMLElement {
   }
 }
 
-customElements.define("orphan-cleaner-panel-1-3-2", OrphanCleanerPanel);
+customElements.define("orphan-cleaner-panel-1-3-1", OrphanCleanerPanel);
