@@ -189,7 +189,7 @@
   </div>
   <div>
     <div class="topbar-title">Orphan Entity Cleaner</div>
-    <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup &nbsp;·&nbsp; v1.0.8</div>
+    <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
   <div class="config-pill" id="cfg-pill">loading…</div>
@@ -267,12 +267,6 @@
 </div>
 
 <script>
-// Retrieve HA token from parent window
-window._haToken = '';
-try { window._haToken = window.parent.document.querySelector('home-assistant').shadowRoot.querySelector('ha-main-toolbar') ? '' : ''; } catch(e){}
-// Use hassConnection token if available
-try { window.parent.customElements.whenDefined('home-assistant').then(() => { const ha = window.parent.document.querySelector('home-assistant'); if(ha <script><script> ha._auth) window._haToken = ha._auth.accessToken; }); } catch(e){}
-
 let allOrphans = [];
 let selected   = new Set();
 
@@ -347,7 +341,8 @@ async function doScan() {
   document.getElementById('log-box').innerHTML = '';
   selected.clear(); updateSelCount();
   try {
-    const r = await fetch('/api/orphan_cleaner/scan');
+    const token = localStorage.getItem('hassTokens') ? JSON.parse(localStorage.getItem('hassTokens')).access_token : '';
+    const r = await fetch('/api/orphan_cleaner/scan', {headers: token ? {'Authorization': 'Bearer '+token} : {}});
     if (!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
     if (data.error) throw new Error(data.error);
@@ -391,6 +386,7 @@ async function doDelete() {
   addLog('Deleting '+ids.length+' entities…','info');
   setStatus('Deletion in progress…');
   try {
+    const token2 = localStorage.getItem('hassTokens') ? JSON.parse(localStorage.getItem('hassTokens')).access_token : '';
     const r = await fetch('/api/orphan_cleaner/delete', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({entity_ids: ids})
