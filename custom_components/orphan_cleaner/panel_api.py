@@ -47,14 +47,16 @@ class OrphanCleanerScanView(HomeAssistantView):
         entry  = _get_config_entry(hass)
         config = {**entry.data, **entry.options} if entry else {}
 
-        min_age    = config.get(CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS)
-        aggressive = config.get(CONF_AGGRESSIVE, DEFAULT_AGGRESSIVE)
+        min_age    = int(request.rel_url.query.get("min_age", config.get(CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS)))
+        methods    = request.rel_url.query.get("methods", "timestamp,dead_entry,unavailable,heuristic").split(",")
+        aggressive = "heuristic" in methods
 
         try:
             from homeassistant.helpers import entity_registry as er
             registry = er.async_get(hass)
             total    = len(registry.entities)
             orphans  = detect_orphans(hass, min_age_hours=min_age, aggressive=aggressive)
+            orphans  = [o for o in orphans if o.method in methods]
 
             return web.Response(
                 content_type="application/json",
