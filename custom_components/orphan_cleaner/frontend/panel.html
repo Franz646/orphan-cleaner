@@ -197,7 +197,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v1.4.0</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v1.4.1</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -217,10 +217,10 @@
   <div class="controls">
     <span style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-right:4px">Methods</span>
     <div class="ctrl-group">
-      <label><input type="checkbox" id="m-ts"   checked> Timestamp</label>
-      <label><input type="checkbox" id="m-de"   checked> Dead entry</label>
-      <label><input type="checkbox" id="m-un"   checked> Unavailable</label>
-      <label><input type="checkbox" id="m-heur"> Heuristic</label>
+      <label><input type="checkbox" id="m-ts"   checked onchange="applyFilter()"> Timestamp</label>
+      <label><input type="checkbox" id="m-de"   checked onchange="applyFilter()"> Dead entry</label>
+      <label><input type="checkbox" id="m-un"   checked onchange="applyFilter()"> Unavailable</label>
+      <label><input type="checkbox" id="m-heur" onchange="applyFilter()"> Heuristic</label>
     </div>
     <div class="ctrl-sep"></div>
     <div class="ctrl-age">
@@ -310,9 +310,17 @@ function updateSelCount() {
   document.getElementById('s-sel').textContent = selected.size;
   document.getElementById('btn-del').disabled  = selected.size === 0;
 }
+function selectedMethods() {
+  const map = {timestamp:'m-ts','dead_entry':'m-de',unavailable:'m-un',heuristic:'m-heur'};
+  return Object.keys(map).filter(m => document.getElementById(map[m])?.checked);
+}
 function filteredOrphans() {
   const q = (document.getElementById('filter').value || '').toLowerCase();
-  return q ? allOrphans.filter(e => e.entity_id.includes(q) || e.platform.includes(q)) : allOrphans;
+  const methods = selectedMethods();
+  return allOrphans.filter(e =>
+    methods.includes(e.method) &&
+    (!q || e.entity_id.includes(q) || e.platform.includes(q))
+  );
 }
 function selAll()   { filteredOrphans().forEach(e => selected.add(e.entity_id)); renderTable(filteredOrphans()); updateSelCount(); }
 function deselAll() { selected.clear(); renderTable(filteredOrphans()); updateSelCount(); }
@@ -377,7 +385,7 @@ async function doScan() {
     const ts_n = allOrphans.filter(o => o.method === 'timestamp').length;
     const he_n = allOrphans.filter(o => o.method === 'heuristic').length;
     document.getElementById('s-total').textContent  = data.total;
-    document.getElementById('s-orphan').textContent = allOrphans.length;
+    document.getElementById('s-orphan').textContent = filteredOrphans().length;
     document.getElementById('s-heur').textContent   = he_n;
     document.getElementById('tbl-title').textContent =
       allOrphans.length ? allOrphans.length+' orphan entities' : 'No orphan entities found';
@@ -423,7 +431,7 @@ async function doDelete() {
       addLog('✓ Deleted: '+id,'ok');
     });
     (data.failed||[]).forEach(id => addLog('✗ Failed: '+id,'err'));
-    document.getElementById('s-orphan').textContent = allOrphans.length;
+    document.getElementById('s-orphan').textContent = filteredOrphans().length;
     document.getElementById('s-heur').textContent   = allOrphans.filter(o=>o.method==='heuristic').length;
     renderTable(filteredOrphans());
     updateSelCount();
