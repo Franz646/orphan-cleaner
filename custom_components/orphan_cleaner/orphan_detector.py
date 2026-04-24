@@ -18,8 +18,6 @@ from datetime import datetime, timezone
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from homeassistant.loader import async_get_loaded_integrations
-
 from .const import MANUAL_PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,7 +59,10 @@ def detect_orphans(
         e.entry_id for e in hass.config_entries.async_entries()
     }
 
-    loaded_integrations: set[str] = async_get_loaded_integrations(hass)
+    # Loaded integrations = domains of active config entries + HA built-ins
+    loaded_integrations: set[str] = {
+        e.domain for e in hass.config_entries.async_entries()
+    } | CORE_PLATFORMS
 
     _LOGGER.debug(
         "Scan: %d entities, %d active entries, %d loaded integrations",
