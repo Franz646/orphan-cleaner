@@ -91,17 +91,30 @@ def detect_orphans(
                 seen.add(entry.entity_id)
             continue
 
-        # ── Method 2: dead config entry ───────────────────────────────
-        if cfg_entry_id and cfg_entry_id not in active_entry_ids:
-            orphans.append(OrphanInfo(
-                entity_id   = entry.entity_id,
-                platform    = platform or "—",
-                method      = "dead_entry",
-                age_hours   = None,
-                disabled_by = entry.disabled_by,
-            ))
-            seen.add(entry.entity_id)
-            continue
+        # ── Method 2: dead or failed/not-loaded config entry ────────
+        if cfg_entry_id:
+            cfg_entry_obj = hass.config_entries.async_get_entry(cfg_entry_id)
+            is_dead = cfg_entry_obj is None
+            if not is_dead and cfg_entry_obj is not None:
+                from homeassistant.config_entries import ConfigEntryState
+                bad_states = {
+                    ConfigEntryState.NOT_LOADED,
+                    ConfigEntryState.SETUP_ERROR,
+                    ConfigEntryState.SETUP_RETRY,
+                    ConfigEntryState.FAILED_UNLOAD,
+                    ConfigEntryState.MIGRATION_ERROR,
+                }
+                is_dead = cfg_entry_obj.state in bad_states
+            if is_dead:
+                orphans.append(OrphanInfo(
+                    entity_id   = entry.entity_id,
+                    platform    = platform or "—",
+                    method      = "dead_entry",
+                    age_hours   = None,
+                    disabled_by = entry.disabled_by,
+                ))
+                seen.add(entry.entity_id)
+                continue
 
         # ── Method 3: platform no longer loaded ───────────────────────
         if (
