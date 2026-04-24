@@ -197,7 +197,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v1.4.1</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v1.4.2</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -328,6 +328,9 @@ function toggleRow(id, chk) { chk ? selected.add(id) : selected.delete(id); upda
 function applyFilter() {
   const items = filteredOrphans();
   renderTable(items);
+  document.getElementById('s-orphan').textContent = items.length;
+  document.getElementById('s-heur').textContent   = items.filter(e => e.method === 'heuristic').length;
+  document.getElementById('tbl-title').textContent = items.length ? items.length+' orphan entities' : 'No orphan entities found';
   const q = document.getElementById('filter').value;
   document.getElementById('tbl-meta').textContent = q ? items.length+' of '+allOrphans.length : '';
 }
@@ -388,11 +391,11 @@ async function doScan() {
     document.getElementById('s-orphan').textContent = filteredOrphans().length;
     document.getElementById('s-heur').textContent   = he_n;
     document.getElementById('tbl-title').textContent =
-      allOrphans.length ? allOrphans.length+' orphan entities' : 'No orphan entities found';
+      filteredOrphans().length ? filteredOrphans().length+' orphan entities' : 'No orphan entities found';
     document.getElementById('filter').disabled    = false;
     document.getElementById('btn-selall').disabled = false;
     document.getElementById('btn-desel').disabled  = false;
-    renderTable(allOrphans);
+    renderTable(filteredOrphans());
     addLog('Scan complete: '+data.total+' total, '+allOrphans.length+' orphans ('+ts_n+' by timestamp, '+he_n+' heuristic).','ok');
     setStatus('Last scan: '+new Date().toLocaleTimeString('en-GB'),'ok');
   } catch(err) {
