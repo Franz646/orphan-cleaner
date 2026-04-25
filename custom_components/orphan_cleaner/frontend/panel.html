@@ -66,6 +66,8 @@
   .topbar-title { font-size: 15px; font-weight: 500; }
   .topbar-sub   { font-size: 11px; color: var(--text2); margin-top: 1px; }
   .topbar-spacer { flex: 1; }
+  .config-pill  { font-size: 11px; background: var(--surface2); border: 0.5px solid var(--border);
+    border-radius: 20px; padding: 4px 10px; color: var(--text2); }
 
   .main { padding: 20px; max-width: 980px; margin: 0 auto; }
 
@@ -170,16 +172,15 @@
   @media (prefers-color-scheme: dark) { .svc-name { color: var(--green-tx); } }
   .svc-desc { font-size: 12px; color: var(--text2); line-height: 1.6; }
 
-  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-    background: var(--surface2); border: 0.5px solid var(--border);
-    border-radius: var(--radius); padding: 12px 16px; margin-bottom: 12px; }
-  .ctrl-group { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-  .ctrl-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-  .ctrl-sep { width: 1px; height: 20px; background: var(--border2); }
-  .ctrl-age { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-  .ctrl-age input { width: 60px; border: 0.5px solid var(--border2);
-    border-radius: var(--radius-sm); padding: 4px 8px; font-size: 13px;
-    background: var(--surface); color: var(--text); text-align: center; }
+  .ctrl-bar { display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:var(--surface2); border:0.5px solid var(--border);
+    border-radius:var(--radius); padding:10px 16px; margin-bottom:12px;
+    font-size:13px; }
+  .ctrl-bar label { display:flex; align-items:center; gap:5px; cursor:pointer; }
+  .ctrl-sep { width:1px; height:18px; background:var(--border2); }
+  .ctrl-bar input[type=number] { width:58px; border:0.5px solid var(--border2);
+    border-radius:var(--radius-sm); padding:3px 7px; font-size:13px;
+    background:var(--surface); color:var(--text); text-align:center; }
 
   @media (max-width: 600px) {
     .stat-row { grid-template-columns: 1fr 1fr; }
@@ -197,10 +198,11 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v1.4.7</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v1.5.0</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
+  <div class="config-pill" id="cfg-pill">loading…</div>
 </div>
 
 <div class="main">
@@ -213,20 +215,12 @@
     <div class="stat s-ok">     <div class="s-label">Selected</div>        <div class="s-val" id="s-sel">0</div></div>
   </div>
 
-  <!-- Detection controls -->
-  <div class="controls">
-    <span style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.04em;margin-right:4px">Methods</span>
-    <div class="ctrl-group">
-      <label><input type="checkbox" id="m-ts"   checked onchange="applyFilter()"> Timestamp</label>
-      <label><input type="checkbox" id="m-de"   checked onchange="applyFilter()"> Dead entry</label>
-      <label><input type="checkbox" id="m-un"   checked onchange="applyFilter()"> Unavailable</label>
-      <label><input type="checkbox" id="m-heur" onchange="applyFilter()"> Heuristic</label>
-    </div>
+  <!-- Controls -->
+  <div class="ctrl-bar">
+    <label><input type="checkbox" id="heur-on"> Heuristic</label>
     <div class="ctrl-sep"></div>
-    <div class="ctrl-age">
-      <span style="font-size:11px;color:var(--text2)">Min age (h)</span>
-      <input type="number" id="min-age" value="24" min="1" max="720">
-    </div>
+    <span style="color:var(--text2)">Min age (h)</span>
+    <input type="number" id="min-age" value="24" min="1" max="720">
   </div>
 
   <!-- Toolbar -->
@@ -310,17 +304,9 @@ function updateSelCount() {
   document.getElementById('s-sel').textContent = selected.size;
   document.getElementById('btn-del').disabled  = selected.size === 0;
 }
-function selectedMethods() {
-  const map = {timestamp:'m-ts','dead_entry':'m-de',unavailable:'m-un',heuristic:'m-heur'};
-  return Object.keys(map).filter(m => document.getElementById(map[m])?.checked);
-}
 function filteredOrphans() {
   const q = (document.getElementById('filter').value || '').toLowerCase();
-  const methods = selectedMethods();
-  return allOrphans.filter(e =>
-    methods.includes(e.method) &&
-    (!q || e.entity_id.includes(q) || e.platform.includes(q))
-  );
+  return q ? allOrphans.filter(e => e.entity_id.includes(q) || e.platform.includes(q)) : allOrphans;
 }
 function selAll()   { filteredOrphans().forEach(e => selected.add(e.entity_id)); renderTable(filteredOrphans()); updateSelCount(); }
 function deselAll() { selected.clear(); renderTable(filteredOrphans()); updateSelCount(); }
@@ -328,9 +314,6 @@ function toggleRow(id, chk) { chk ? selected.add(id) : selected.delete(id); upda
 function applyFilter() {
   const items = filteredOrphans();
   renderTable(items);
-  document.getElementById('s-orphan').textContent = items.length;
-  document.getElementById('s-heur').textContent   = allOrphans.filter(e => e.method === 'heuristic').length;
-  document.getElementById('tbl-title').textContent = items.length ? items.length+' orphan entities' : 'No orphan entities found';
   const q = document.getElementById('filter').value;
   document.getElementById('tbl-meta').textContent = q ? items.length+' of '+allOrphans.length : '';
 }
@@ -347,10 +330,6 @@ function renderTable(items) {
     const chk   = selected.has(e.entity_id) ? 'checked' : '';
     const badge = e.method === 'timestamp'
       ? '<span class="badge badge-ts">orphaned_timestamp</span>'
-      : e.method === 'dead_entry'
-      ? '<span class="badge badge-dead">dead entry</span>'
-      : e.method === 'unloaded_platform'
-      ? '<span class="badge badge-dead">unloaded</span>'
       : '<span class="badge badge-heuristic">heuristic</span>';
     const dis   = e.disabled_by ? '<span class="badge badge-disabled">disabled</span>' : '';
     const age   = e.age_hours != null ? e.age_hours+'h' : '—';
@@ -381,7 +360,8 @@ async function doScan() {
   selected.clear(); updateSelCount();
   try {
     const minAge = document.getElementById('min-age')?.value || 24;
-    const r    = await fetch('/api/orphan_cleaner/scan?min_age='+minAge);
+    const heur   = document.getElementById('heur-on')?.checked ? 1 : 0;
+    const r    = await fetch('/api/orphan_cleaner/scan?min_age='+minAge+'&heuristic='+heur);
     if (!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
     if (data.error) throw new Error(data.error);
@@ -389,14 +369,16 @@ async function doScan() {
     const ts_n = allOrphans.filter(o => o.method === 'timestamp').length;
     const he_n = allOrphans.filter(o => o.method === 'heuristic').length;
     document.getElementById('s-total').textContent  = data.total;
-    document.getElementById('s-orphan').textContent = filteredOrphans().length;
+    document.getElementById('s-orphan').textContent = allOrphans.length;
     document.getElementById('s-heur').textContent   = he_n;
     document.getElementById('tbl-title').textContent =
-      filteredOrphans().length ? filteredOrphans().length+' orphan entities' : 'No orphan entities found';
+      allOrphans.length ? allOrphans.length+' orphan entities' : 'No orphan entities found';
+    document.getElementById('cfg-pill').textContent =
+      'min age: '+data.min_age+'h | heuristic: '+(data.aggressive?'on':'off');
     document.getElementById('filter').disabled    = false;
     document.getElementById('btn-selall').disabled = false;
     document.getElementById('btn-desel').disabled  = false;
-    renderTable(filteredOrphans());
+    renderTable(allOrphans);
     addLog('Scan complete: '+data.total+' total, '+allOrphans.length+' orphans ('+ts_n+' by timestamp, '+he_n+' heuristic).','ok');
     setStatus('Last scan: '+new Date().toLocaleTimeString('en-GB'),'ok');
   } catch(err) {
@@ -435,7 +417,7 @@ async function doDelete() {
       addLog('✓ Deleted: '+id,'ok');
     });
     (data.failed||[]).forEach(id => addLog('✗ Failed: '+id,'err'));
-    document.getElementById('s-orphan').textContent = filteredOrphans().length;
+    document.getElementById('s-orphan').textContent = allOrphans.length;
     document.getElementById('s-heur').textContent   = allOrphans.filter(o=>o.method==='heuristic').length;
     renderTable(filteredOrphans());
     updateSelCount();
