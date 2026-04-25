@@ -3,47 +3,11 @@
     "step": {
       "user": {
         "title": "Orphan Entity Cleaner",
-        "description": "Configure the orphan entity detection parameters.",
-        "data": {
-          "min_orphan_age_hours": "Minimum orphan age (hours)",
-          "aggressive_heuristic": "Aggressive heuristic"
-        }
+        "description": "Click Submit to install the integration. Settings are available directly in the panel."
       }
     },
     "abort": {
       "already_configured": "Integration already configured"
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Orphan Cleaner Options",
-        "data": {
-          "min_orphan_age_hours": "Minimum orphan age (hours)",
-          "aggressive_heuristic": "Aggressive heuristic"
-        }
-      }
-    }
-  },
-  "services": {
-    "scan": {
-      "name": "Scan orphan entities",
-      "description": "Scans the registry and fires the orphan_cleaner_orphans_found event.",
-      "fields": {}
-    },
-    "delete_orphans": {
-      "name": "Delete orphan entities",
-      "description": "Deletes the specified orphan entities, or all detected orphans if none specified.",
-      "fields": {
-        "entity_ids": {
-          "name": "Entity IDs",
-          "description": "List of entity_ids to delete. If omitted, all detected orphans are deleted."
-        },
-        "dry_run": {
-          "name": "Dry run",
-          "description": "If true, simulates the operation without making any changes."
-        }
-      }
     }
   }
 }
