@@ -1,8 +1,10 @@
 ---
 name: Feature Request
-description: Suggest an idea for a new feature
-title: "Feature Request: [Feature Name]"
-labels: ["feature request"]
+about: Some trick for contributing
+title: 'Feature Request: [Feature Name]'
+labels: ''
+assignees: Franz646
+
 ---
 
 ## Summary
