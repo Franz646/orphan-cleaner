@@ -31,7 +31,11 @@ class OrphanCleanerIndexView(HomeAssistantView):
         html = await request.loop.run_in_executor(
             None, (FRONTEND_DIR / "panel.html").read_text, "utf-8"
         )
-        return web.Response(content_type="text/html", text=html)
+        return web.Response(
+            content_type="text/html",
+            text=html,
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+        )
 
 
 class OrphanCleanerScanView(HomeAssistantView):
