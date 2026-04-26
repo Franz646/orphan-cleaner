@@ -208,7 +208,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.0.6</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.0.7</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -444,14 +444,11 @@ async function doScan() {
     const ts_n = allOrphans.filter(o => o.method === 'timestamp').length;
     const he_n = allOrphans.filter(o => o.method === 'heuristic').length;
     document.getElementById('s-total').textContent  = data.total;
-    document.getElementById('s-orphan').textContent = allOrphans.length;
     document.getElementById('s-heur').textContent   = he_n;
-    document.getElementById('tbl-title').textContent =
-      allOrphans.length ? allOrphans.length+' orphan entities' : 'No orphan entities found';
     document.getElementById('filter').disabled    = false;
     document.getElementById('btn-selall').disabled = false;
     document.getElementById('btn-desel').disabled  = false;
-    renderTable(filteredOrphans());
+    applyIgnore();
     addLog('Scan complete: '+data.total+' total, '+allOrphans.length+' orphans ('+ts_n+' by timestamp, '+he_n+' heuristic).','ok');
     setStatus('Last scan: '+new Date().toLocaleTimeString('en-GB'),'ok');
   } catch(err) {
