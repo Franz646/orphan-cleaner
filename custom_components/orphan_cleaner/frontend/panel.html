@@ -208,7 +208,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.0.2</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.0.3</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -308,15 +308,28 @@ function ignoreAdd() {
   const val = inp.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
   if (!val) return;
   if (ignorePlatforms.has(val)) { inp.value = ''; return; }
-  ignorePlatforms.add(val.trim().toLowerCase());
+  ignorePlatforms.add(val);
   inp.value = '';
   renderIgnoreTags();
-  renderTable(filteredOrphans());
+  applyIgnore();
 }
 function ignoreRemove(val) {
   ignorePlatforms.delete(val);
   renderIgnoreTags();
-  renderTable(filteredOrphans());
+  applyIgnore();
+}
+function applyIgnore() {
+  const items  = filteredOrphans();
+  const active = items.filter(e => !e._ignored);
+  // deseleziona entità che ora sono ignorate
+  items.filter(e => e._ignored).forEach(e => selected.delete(e.entity_id));
+  renderTable(items);
+  if (allOrphans.length) {
+    document.getElementById('s-orphan').textContent = active.length;
+    document.getElementById('tbl-title').textContent =
+      active.length ? active.length + ' orphan entities' : 'No orphan entities found';
+  }
+  updateSelCount();
 }
 function renderIgnoreTags() {
   const c = document.getElementById('ignore-tags');
