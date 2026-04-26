@@ -53,21 +53,25 @@ class OrphanCleanerScanView(HomeAssistantView):
 
         min_age    = int(request.rel_url.query.get("min_age", config.get(CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS)))
         aggressive = request.rel_url.query.get("heuristic", "0") == "1"
+        raw_ignore = request.rel_url.query.get("ignore_platforms", "")
+        ignore_platforms = {p.strip() for p in raw_ignore.split(",") if p.strip()} if raw_ignore else set()
 
         try:
             from homeassistant.helpers import entity_registry as er
             registry = er.async_get(hass)
             total    = len(registry.entities)
-            orphans  = detect_orphans(hass, min_age_hours=min_age, aggressive=aggressive)
+            orphans  = detect_orphans(hass, min_age_hours=min_age, aggressive=aggressive,
+                                      ignore_platforms=ignore_platforms)
 
             return web.Response(
                 content_type="application/json",
                 text=json.dumps({
-                    "total":      total,
-                    "orphans":    [o.as_dict() for o in orphans],
-                    "min_age":    min_age,
-                    "aggressive": aggressive,
-                    "error":      None,
+                    "total":            total,
+                    "orphans":          [o.as_dict() for o in orphans],
+                    "min_age":          min_age,
+                    "aggressive":       aggressive,
+                    "ignore_platforms": list(ignore_platforms),
+                    "error":            None,
                 }),
             )
         except Exception as exc:

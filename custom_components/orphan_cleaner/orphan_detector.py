@@ -51,16 +51,22 @@ def detect_orphans(
     hass: HomeAssistant,
     min_age_hours: int = 24,
     aggressive: bool = False,
+    ignore_platforms: set[str] | None = None,
 ) -> list[OrphanInfo]:
 
-    entity_registry = er.async_get(hass)
-    now             = time.time()
+    entity_registry  = er.async_get(hass)
+    now              = time.time()
     orphans: list[OrphanInfo] = []
-    seen: set[str] = set()
+    seen: set[str]   = set()
+    _ignore          = ignore_platforms or set()
 
     for entry in entity_registry.entities.values():
         platform     = entry.platform or ""
         cfg_entry_id = entry.config_entry_id
+
+        # Skip platforms the user wants to ignore
+        if platform and platform in _ignore:
+            continue
 
         # Method 1: orphaned_timestamp
         ts = getattr(entry, "orphaned_timestamp", None)

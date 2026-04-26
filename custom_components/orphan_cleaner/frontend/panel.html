@@ -180,6 +180,18 @@
     border-radius:var(--radius-sm); padding:3px 7px; font-size:13px;
     background:var(--surface); color:var(--text); text-align:center; }
 
+  .ignore-tag { display:inline-flex; align-items:center; gap:4px;
+    background:var(--surface2); border:0.5px solid var(--border2);
+    border-radius:99px; padding:2px 9px; font-size:11px; color:var(--text2); }
+  .ignore-tag-x { cursor:pointer; opacity:0.5; font-size:13px; line-height:1; }
+  .ignore-tag-x:hover { opacity:1; }
+  .ctrl-bar input[type=text] { border:0.5px solid var(--border2);
+    border-radius:var(--radius-sm); padding:3px 8px; font-size:12px;
+    background:var(--surface); color:var(--text); width:120px; }
+  .ctrl-bar button.btn-add { font-size:11px; padding:3px 9px; }
+  tr.ignored { opacity:0.35; }
+  tr.ignored td { color:var(--text3); }
+
   @media (max-width: 600px) {
     .stat-row { grid-template-columns: 1fr 1fr; }
     .topbar-sub { display: none; }
@@ -196,7 +208,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v1.5.6</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.0.0</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -218,6 +230,11 @@
     <div class="ctrl-sep"></div>
     <span style="color:var(--text2)">Min age (h)</span>
     <input type="number" id="min-age" value="24" min="1" max="720">
+    <div class="ctrl-sep"></div>
+    <span style="color:var(--text2)">Ignore platforms</span>
+    <input type="text" id="ignore-input" placeholder="es. tuya, zha…">
+    <button class="btn-add" onclick="ignoreAdd()">+ Add</button>
+    <div id="ignore-tags" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;"></div>
   </div>
 
   <!-- Toolbar -->
@@ -282,8 +299,31 @@
 </div>
 
 <script>
-let allOrphans = [];
-let selected   = new Set();
+let allOrphans       = [];
+let selected         = new Set();
+let ignorePlatforms  = new Set();
+
+function ignoreAdd() {
+  const inp = document.getElementById('ignore-input');
+  const val = inp.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  if (!val) return;
+  if (ignorePlatforms.has(val)) { inp.value = ''; return; }
+  ignorePlatforms.add(val);
+  inp.value = '';
+  renderIgnoreTags();
+  renderTable(filteredOrphans());
+}
+function ignoreRemove(val) {
+  ignorePlatforms.delete(val);
+  renderIgnoreTags();
+  renderTable(filteredOrphans());
+}
+function renderIgnoreTags() {
+  const c = document.getElementById('ignore-tags');
+  c.innerHTML = [...ignorePlatforms].map(v =>
+    `<span class="ignore-tag">${v} <span class="ignore-tag-x" onclick="ignoreRemove('${v}')">×</span></span>`
+  ).join('');
+}
 
 function addLog(msg, type='info') {
   const box  = document.getElementById('log-box');
@@ -304,22 +344,27 @@ function updateSelCount() {
 function filteredOrphans() {
   const q    = (document.getElementById('filter').value || '').toLowerCase();
   const heur = document.getElementById('heur-on')?.checked;
-  return allOrphans.filter(e =>
-    (heur || e.method !== 'heuristic') &&
-    (!q || e.entity_id.includes(q) || e.platform.includes(q))
-  );
+  return allOrphans
+    .filter(e => (heur || e.method !== 'heuristic') &&
+                 (!q || e.entity_id.includes(q) || e.platform.includes(q)))
+    .map(e => ({ ...e, _ignored: ignorePlatforms.has(e.platform) }));
 }
-function selAll()   { filteredOrphans().forEach(e => selected.add(e.entity_id)); renderTable(filteredOrphans()); updateSelCount(); }
+function activeOrphans() {
+  return filteredOrphans().filter(e => !e._ignored);
+}
+function selAll()   { activeOrphans().forEach(e => selected.add(e.entity_id)); renderTable(filteredOrphans()); updateSelCount(); }
 function deselAll() { selected.clear(); renderTable(filteredOrphans()); updateSelCount(); }
 function toggleRow(id, chk) { chk ? selected.add(id) : selected.delete(id); updateSelCount(); }
 function applyFilter() {
   const items = filteredOrphans();
   renderTable(items);
   const q = document.getElementById('filter').value;
-  document.getElementById('tbl-meta').textContent = q ? items.length+' of '+allOrphans.length : '';
+  const active = items.filter(e => !e._ignored).length;
+  document.getElementById('tbl-meta').textContent = q ? active+' of '+allOrphans.length : '';
 }
 function renderTable(items) {
   const wrap = document.getElementById('tbl-wrap');
+  const activeItems = items.filter(e => !e._ignored);
   if (!items.length) {
     wrap.innerHTML = `<div class="empty">
       <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
@@ -328,6 +373,17 @@ function renderTable(items) {
     return;
   }
   const rows = items.map(e => {
+    if (e._ignored) {
+      const dis = e.disabled_by ? '<span class="badge badge-disabled">disabled</span>' : '';
+      const age = e.age_hours != null ? e.age_hours+'h' : '—';
+      return `<tr class="ignored">
+        <td class="td-chk"></td>
+        <td><span class="eid">${e.entity_id}</span>${dis}</td>
+        <td><span class="platform-badge">${e.platform}</span></td>
+        <td class="td-method"><span style="color:var(--text3)">— ignored</span></td>
+        <td class="td-age"><span class="age-text">—</span></td>
+      </tr>`;
+    }
     const chk   = selected.has(e.entity_id) ? 'checked' : '';
     const badge = e.method === 'timestamp'
       ? '<span class="badge badge-ts">orphaned_timestamp</span>'
@@ -436,6 +492,7 @@ async function doDelete() {
   }
 }
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+document.getElementById('ignore-input').addEventListener('keydown', e => { if (e.key==='Enter') ignoreAdd(); });
 </script>
 </body>
 </html>
