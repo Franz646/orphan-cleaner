@@ -437,7 +437,7 @@ async function doScan() {
     document.getElementById('filter').disabled    = false;
     document.getElementById('btn-selall').disabled = false;
     document.getElementById('btn-desel').disabled  = false;
-    renderTable(allOrphans);
+    renderTable(filteredOrphans());
     addLog('Scan complete: '+data.total+' total, '+allOrphans.length+' orphans ('+ts_n+' by timestamp, '+he_n+' heuristic).','ok');
     setStatus('Last scan: '+new Date().toLocaleTimeString('en-GB'),'ok');
   } catch(err) {
