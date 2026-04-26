@@ -1,7 +1,7 @@
 {
   "domain": "orphan_cleaner",
   "name": "Orphan Entity Cleaner",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "documentation": "https://github.com/Franz646/orphan-cleaner",
   "issue_tracker": "https://github.com/Franz646/orphan-cleaner/issues",
   "codeowners": [

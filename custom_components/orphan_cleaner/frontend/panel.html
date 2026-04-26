@@ -189,7 +189,7 @@
     border-radius:var(--radius-sm); padding:3px 8px; font-size:12px;
     background:var(--surface); color:var(--text); width:120px; }
   .ctrl-bar button.btn-add { font-size:11px; padding:3px 9px; }
-  tr.ignored { opacity:0.35; }
+  tr.ignored { opacity:0.35; pointer-events:none; user-select:none; }
   tr.ignored td { color:var(--text3); }
 
   @media (max-width: 600px) {
@@ -208,7 +208,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.0.1</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.0.2</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -308,7 +308,7 @@ function ignoreAdd() {
   const val = inp.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
   if (!val) return;
   if (ignorePlatforms.has(val)) { inp.value = ''; return; }
-  ignorePlatforms.add(val);
+  ignorePlatforms.add(val.trim().toLowerCase());
   inp.value = '';
   renderIgnoreTags();
   renderTable(filteredOrphans());
@@ -347,7 +347,7 @@ function filteredOrphans() {
   return allOrphans
     .filter(e => (heur || e.method !== 'heuristic') &&
                  (!q || e.entity_id.includes(q) || e.platform.includes(q)))
-    .map(e => ({ ...e, _ignored: ignorePlatforms.has(e.platform) }));
+    .map(e => ({ ...e, _ignored: ignorePlatforms.has((e.platform || '').trim().toLowerCase()) }));
 }
 function activeOrphans() {
   return filteredOrphans().filter(e => !e._ignored);
