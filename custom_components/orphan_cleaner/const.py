@@ -47,4 +47,4 @@ PANEL_NAME = "Orphan Cleaner"
 PANEL_ICON = "mdi:broom"
 
 # Versione corrente (usata per cache-busting)
-VERSION = "2.0.7"
+VERSION = "2.1.0"
