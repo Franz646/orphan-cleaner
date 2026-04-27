@@ -79,7 +79,7 @@ class OrphanCleanerScanView(HomeAssistantView):
             return web.Response(
                 status=500,
                 content_type="application/json",
-                text=json.dumps({"error": str(exc), "orphans": [], "total": 0}),
+                text=json.dumps({"error": "Internal server error", "orphans": [], "total": 0}),
             )
 
 
@@ -121,7 +121,7 @@ class OrphanCleanerDeleteView(HomeAssistantView):
             return web.Response(
                 status=500,
                 content_type="application/json",
-                text=json.dumps({"error": str(exc)}),
+                text=json.dumps({"error": "Internal server error"}),
             )
 
 
@@ -174,7 +174,7 @@ class OrphanCleanerExportView(HomeAssistantView):
             return web.Response(
                 status=500,
                 content_type="application/json",
-                text=json.dumps({"error": str(exc)}),
+                text=json.dumps({"error": "Internal server error"}),
             )
 
 # ---------------------------------------------------------------------------
