@@ -191,6 +191,11 @@
   .ctrl-bar button.btn-add { font-size:11px; padding:3px 9px; }
   tr.ignored { opacity:0.35; pointer-events:none; user-select:none; }
   tr.ignored td { color:var(--text3); }
+  .btn-save-del { background:var(--surface2); border:1px solid var(--border2);
+    border-radius:var(--radius-sm); color:var(--text2); font-size:13px;
+    padding:7px 13px; cursor:pointer; white-space:nowrap; }
+  .btn-save-del:hover:not(:disabled) { background:var(--surface3); }
+  .btn-save-del:disabled { opacity:0.4; cursor:not-allowed; }
 
   @media (max-width: 600px) {
     .stat-row { grid-template-columns: 1fr 1fr; }
@@ -208,7 +213,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.1.0</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.2.0</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -245,6 +250,7 @@
     <input  class="search" type="text" placeholder="Filter by entity_id or platform…"
             id="filter" oninput="applyFilter()" disabled>
     <button class="btn-danger" id="btn-del" onclick="confirmDelete()" disabled>Delete selected</button>
+    <button class="btn-save-del" id="btn-save-del" onclick="confirmSaveDelete()" disabled title="Save a backup JSON before deleting">Save &amp; Delete</button>
   </div>
 
   <!-- Table card -->
@@ -293,7 +299,7 @@
     <p id="modal-msg"></p>
     <div class="modal-btns">
       <button onclick="closeModal()">Cancel</button>
-      <button class="btn-danger" onclick="doDelete()">Delete</button>
+      <button class="btn-danger" id="btn-modal-del" onclick="doDelete()">Delete</button>
     </div>
   </div>
 </div>
@@ -353,7 +359,8 @@ function setStatus(msg, state='') {
 }
 function updateSelCount() {
   document.getElementById('s-sel').textContent = selected.size;
-  document.getElementById('btn-del').disabled  = selected.size === 0;
+  document.getElementById('btn-del').disabled      = selected.size === 0;
+  document.getElementById('btn-save-del').disabled = selected.size === 0;
 }
 function filteredOrphans() {
   const q    = (document.getElementById('filter').value || '').toLowerCase();
@@ -467,6 +474,45 @@ function confirmDelete() {
   document.getElementById('overlay').classList.add('show');
 }
 function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+
+function confirmSaveDelete() {
+  if (!selected.size) return;
+  document.getElementById('modal-msg').innerHTML =
+    'You are about to <strong>save a backup</strong> of '+selected.size+' entities to <code>/config/</code> and then <strong>delete</strong> them from the registry.<br>'+
+    'This operation is <strong>irreversible</strong>. Continue?';
+  // Temporaneamente cambia il pulsante Delete del modal per usare doSaveDelete
+  document.getElementById('btn-modal-del').onclick = doSaveDelete;
+  document.getElementById('overlay').classList.add('show');
+}
+
+async function doSaveDelete() {
+  closeModal();
+  // Ripristina onclick originale del pulsante modal
+  document.getElementById('btn-modal-del').onclick = doDelete;
+  const ids = [...selected];
+  document.getElementById('btn-del').disabled     = true;
+  document.getElementById('btn-save-del').disabled = true;
+  addLog('Saving backup of '+ids.length+' entities…','info');
+  setStatus('Saving backup…');
+  try {
+    const er = await fetch('/api/orphan_cleaner/export', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ entity_ids: ids, orphans: allOrphans })
+    });
+    if (!er.ok) throw new Error('Export HTTP '+er.status);
+    const ed = await er.json();
+    if (ed.error) throw new Error(ed.error);
+    addLog('✓ Backup saved: '+ed.filename,'ok');
+  } catch(err) {
+    addLog('✗ Backup failed: '+err.message+' — deletion aborted','err');
+    setStatus('Backup failed — deletion aborted','err');
+    document.getElementById('btn-save-del').disabled = selected.size === 0;
+    document.getElementById('btn-del').disabled      = selected.size === 0;
+    return;
+  }
+  // Procedi con la cancellazione
+  await doDelete();
+}
 
 async function doDelete() {
   closeModal();

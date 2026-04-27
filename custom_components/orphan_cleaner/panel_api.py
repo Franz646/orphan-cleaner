@@ -125,6 +125,58 @@ class OrphanCleanerDeleteView(HomeAssistantView):
             )
 
 
+
+class OrphanCleanerExportView(HomeAssistantView):
+    """Endpoint POST /api/orphan_cleaner/export — salva le entità selezionate in un file JSON."""
+
+    url          = "/api/orphan_cleaner/export"
+    name         = "api:orphan_cleaner:export"
+    requires_auth = False
+
+    async def post(self, request: web.Request) -> web.Response:
+        hass: HomeAssistant = request.app["hass"]
+
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(status=400, text='{"error":"JSON non valido"}',
+                                content_type="application/json")
+
+        entity_ids = body.get("entity_ids", [])
+        orphans    = body.get("orphans", [])
+
+        if not entity_ids:
+            return web.Response(status=400,
+                                text='{"error":"entity_ids mancante o vuoto"}',
+                                content_type="application/json")
+
+        import datetime, pathlib
+        ts       = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"orphan_cleaner_backup_{ts}.json"
+        path     = pathlib.Path(hass.config.config_dir) / filename
+
+        payload  = {
+            "exported_at": datetime.datetime.now().isoformat(),
+            "entity_count": len(entity_ids),
+            "entities": [o for o in orphans if o.get("entity_id") in entity_ids],
+        }
+
+        try:
+            await hass.async_add_executor_job(
+                path.write_text, json.dumps(payload, indent=2, ensure_ascii=False)
+            )
+            return web.Response(
+                content_type="application/json",
+                text=json.dumps({"ok": True, "filename": filename, "path": str(path)}),
+            )
+        except Exception as exc:
+            _LOGGER.exception("Errore export API")
+            return web.Response(
+                status=500,
+                content_type="application/json",
+                text=json.dumps({"error": str(exc)}),
+            )
+
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
@@ -162,6 +214,7 @@ def async_register_views(hass: HomeAssistant) -> None:
     hass.http.register_view(OrphanCleanerIndexView())
     hass.http.register_view(OrphanCleanerScanView())
     hass.http.register_view(OrphanCleanerDeleteView())
+    hass.http.register_view(OrphanCleanerExportView())
     _LOGGER.debug("View HTTP Orphan Cleaner registrate")
 
 
