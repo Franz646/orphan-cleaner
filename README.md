@@ -163,6 +163,43 @@ custom_components/orphan_cleaner/
 
 ---
 
+## Recovering from accidental deletion
+
+If you used **Save & Delete**, a backup file was written to `/config/orphan_cleaner_backup_<timestamp>.json` before the deletion. This file contains the metadata of all deleted entities.
+
+### What the backup contains
+
+```json
+{
+  "exported_at": "2024-11-15T10:32:00",
+  "entity_count": 3,
+  "entities": [
+    {
+      "entity_id": "sensor.old_device_temperature",
+      "platform": "tuya",
+      "method": "dead_entry",
+      "age_hours": 312.5,
+      "disabled_by": null
+    }
+  ]
+}
+```
+
+### What you can do
+
+- **Check if the entity was truly orphaned** — look at the `method` and `age_hours` fields. If `age_hours` is low, the integration may have been temporarily offline and the entity could reappear after a restart.
+- **Reinstall the integration** — if the platform (e.g. `tuya`, `shelly`, `zha`) is still active and the physical device is reachable, removing and re-adding the integration will recreate its entities automatically.
+- **Restore custom attributes manually** — if the entity reappears, you can reassign its area, icon, and aliases from the HA UI. The backup gives you the original `entity_id` to match it.
+- **Clean up the recorder** — if the entity had historical data and you want to remove it, use the `recorder.purge_entities` service with the `entity_id` from the backup.
+
+### What cannot be recovered
+
+- The entity registry entry itself — HA does not expose an API to re-insert entries manually.
+- Historical recorder data is not deleted by this integration, but it will no longer be linked to an active entity.
+- If the underlying integration or device no longer exists, the entity cannot be recreated without it.
+
+---
+
 ## Warnings
 
 - **Always make a backup** before deleting entities in bulk. Use **Save & Delete** to automatically export a JSON record before each deletion.
