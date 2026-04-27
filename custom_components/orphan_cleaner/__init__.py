@@ -34,6 +34,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async_register_views(hass)
     async_register_services(hass)
 
+    # Remove any previously registered panel before re-registering
+    # This ensures the versioned URL is always refreshed after an update
+    try:
+        frontend.async_remove_panel(hass, PANEL_URL)
+    except Exception:
+        pass
+
     # Use iframe panel pointing directly to panel.html — no JS cache issues
     frontend.async_register_built_in_panel(
         hass,
