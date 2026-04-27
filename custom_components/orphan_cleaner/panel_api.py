@@ -116,12 +116,12 @@ class OrphanCleanerDeleteView(HomeAssistantView):
                     "failed_count":  len(failed),
                 }),
             )
-        except Exception as exc:
+        except Exception:
             _LOGGER.exception("Errore delete API")
             return web.Response(
                 status=500,
                 content_type="application/json",
-                text=json.dumps({"error": str(exc)}),
+                text=json.dumps({"error": "Errore interno del server"}),
             )
 
 
@@ -169,12 +169,12 @@ class OrphanCleanerExportView(HomeAssistantView):
                 content_type="application/json",
                 text=json.dumps({"ok": True, "filename": filename, "path": str(path)}),
             )
-        except Exception as exc:
+        except Exception:
             _LOGGER.exception("Errore export API")
             return web.Response(
                 status=500,
                 content_type="application/json",
-                text=json.dumps({"error": str(exc)}),
+                text=json.dumps({"error": "Errore interno del server"}),
             )
 
 # ---------------------------------------------------------------------------
