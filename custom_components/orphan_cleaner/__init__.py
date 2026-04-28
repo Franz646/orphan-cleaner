@@ -10,12 +10,15 @@ import pathlib
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.components import frontend
+import homeassistant.helpers.config_validation as cv
 
 from .const import DOMAIN, PANEL_URL, PANEL_NAME, PANEL_ICON, VERSION
 from .panel_api import async_register_views
 from .services import async_register_services, async_unregister_services
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
