@@ -1,6 +1,5 @@
 {
   "name": "Orphan Entity Cleaner",
   "render_readme": true,
-  "homeassistant": "2024.1.0",
-  "domains": ["orphan_cleaner"]
+  "homeassistant": "2024.1.0"
 }
