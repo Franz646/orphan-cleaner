@@ -191,6 +191,27 @@
   .ctrl-bar button.btn-add { font-size:11px; padding:3px 9px; }
   tr.ignored { opacity:0.35; pointer-events:none; user-select:none; }
   tr.ignored td { color:var(--text3); }
+  .ignore-section { background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:8px; overflow:hidden; }
+  .ignore-header { display:flex; align-items:center; justify-content:space-between;
+    padding:7px 14px; cursor:pointer; user-select:none; font-size:12px; color:var(--text2); }
+  .ignore-header:hover { background:rgba(255,255,255,.03); }
+  .ignore-badge { background:rgba(46,204,113,.15); color:#2ecc71; border-radius:99px;
+    font-size:10px; padding:1px 7px; margin-left:6px; }
+  .ignore-arrow { font-size:10px; color:var(--text3); transition:transform .2s; margin-left:auto; }
+  .ignore-arrow.open { transform:rotate(180deg); }
+  .ignore-body { border-top:.5px solid var(--border2); padding:8px 14px 10px; display:none; }
+  .ignore-body.open { display:block; }
+  .ignore-hint { font-size:11px; color:var(--text3); margin-bottom:8px; }
+  .ignore-input-row { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
+  .ignore-input-row input[type=text] { width:150px; font-size:12px; }
+  .ignore-saved-tags { display:flex; flex-wrap:wrap; gap:5px; min-height:18px; align-items:center; }
+  .tag-saved { background:rgba(46,204,113,.12); border:.5px solid rgba(46,204,113,.3);
+    border-radius:99px; padding:2px 9px; font-size:11px; color:#2ecc71;
+    display:inline-flex; align-items:center; gap:4px; }
+  .btn-save-list { background:rgba(46,204,113,.15); border:.5px solid rgba(46,204,113,.3);
+    border-radius:var(--radius-sm); color:#2ecc71; font-size:11px; padding:3px 10px; cursor:pointer; }
+  .btn-save-list:hover { background:rgba(46,204,113,.25); }
+  .save-ok { font-size:11px; color:#2ecc71; opacity:0; transition:opacity .4s; margin-left:4px; }
   .btn-save-del { background:#7a5200; border:none;
     border-radius:var(--radius-sm); color:#f5c842; font-size:13px; font-weight:500;
     padding:7px 13px; cursor:pointer; white-space:nowrap; }
@@ -213,7 +234,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.2.5</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.3.0</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -240,6 +261,28 @@
     <input type="text" id="ignore-input" placeholder="es. tuya, zha…">
     <button class="btn-add" onclick="ignoreAdd()">+ Add</button>
     <div id="ignore-tags" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;"></div>
+  </div>
+
+  <!-- Default ignore list — persistent -->
+  <div class="ignore-section">
+    <div class="ignore-header" onclick="toggleIgnoreSection()">
+      <span>⚙ Default ignore list</span>
+      <span class="ignore-badge" id="saved-badge">0 saved</span>
+      <span class="ignore-arrow" id="ignore-arrow">▼</span>
+    </div>
+    <div class="ignore-body" id="ignore-body">
+      <div class="ignore-hint">
+        Supports platforms (<code>tuya</code>) and entity globs (<code>sensor.old_*</code>).
+        Pre-loaded on every scan. <a href="#" onclick="showGlobHelp();return false;" style="color:var(--text3);font-size:10px;">?</a>
+      </div>
+      <div class="ignore-input-row">
+        <input type="text" id="saved-ig-input" placeholder="platform or glob…" />
+        <button class="btn" onclick="savedIgAdd()" style="padding:3px 9px;font-size:11px;">+ Add</button>
+        <button class="btn-save-list" onclick="savedIgSave()">💾 Save</button>
+        <span class="save-ok" id="save-ok-msg">Saved ✓</span>
+      </div>
+      <div class="ignore-saved-tags" id="saved-ig-tags"></div>
+    </div>
   </div>
 
   <!-- Toolbar -->
@@ -473,7 +516,10 @@ function confirmDelete() {
     +'This operation is <strong>irreversible</strong>. Continue?';
   document.getElementById('overlay').classList.add('show');
 }
-function closeModal() { document.getElementById('overlay').classList.remove('show'); }
+function closeModal() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('btn-modal-del').style.display = '';
+}
 
 function confirmSaveDelete() {
   if (!selected.size) return;
@@ -549,7 +595,83 @@ async function doDelete() {
   }
 }
 document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+
+// ---------------------------------------------------------------------------
+// Default ignore list (persistent)
+// ---------------------------------------------------------------------------
+let savedIgnoreList = [];
+
+async function loadSavedIgnoreList() {
+  try {
+    const r = await fetch('/api/orphan_cleaner/ignore_list');
+    if (!r.ok) return;
+    const d = await r.json();
+    savedIgnoreList = d.ignore_list || [];
+    renderSavedTags();
+  } catch(e) { /* silently fail */ }
+}
+
+function renderSavedTags() {
+  const c = document.getElementById('saved-ig-tags');
+  c.innerHTML = savedIgnoreList.map(v =>
+    `<span class="tag-saved" data-v="${v}">${v} <span class="ignore-tag-x" onclick="savedIgRemove('${v}')" style="cursor:pointer;opacity:.5;font-size:13px;">×</span></span>`
+  ).join('');
+  document.getElementById('saved-badge').textContent = savedIgnoreList.length + ' saved';
+}
+
+function savedIgAdd() {
+  const inp = document.getElementById('saved-ig-input');
+  const val = inp.value.trim();
+  if (!val || savedIgnoreList.includes(val)) { inp.value=''; return; }
+  savedIgnoreList.push(val);
+  inp.value = '';
+  renderSavedTags();
+}
+
+function savedIgRemove(val) {
+  savedIgnoreList = savedIgnoreList.filter(v => v !== val);
+  renderSavedTags();
+}
+
+async function savedIgSave() {
+  try {
+    const r = await fetch('/api/orphan_cleaner/ignore_list', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ignore_list: savedIgnoreList })
+    });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const ok = document.getElementById('save-ok-msg');
+    ok.style.opacity = '1';
+    setTimeout(() => ok.style.opacity = '0', 2000);
+    addLog('Default ignore list saved ('+savedIgnoreList.length+' entries).', 'ok');
+  } catch(e) {
+    addLog('Error saving ignore list: '+e.message, 'err');
+  }
+}
+
+function toggleIgnoreSection() {
+  const body  = document.getElementById('ignore-body');
+  const arrow = document.getElementById('ignore-arrow');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+function showGlobHelp() {
+  document.getElementById('modal-msg').innerHTML =
+    '<strong>Ignore list syntax</strong><br><br>' +
+    '<b>Platform name</b> — ignores all entities of that platform<br>' +
+    '<code>tuya</code>, <code>shelly</code>, <code>imou_life</code><br><br>' +
+    '<b>Entity glob</b> — ignores entities matching the pattern<br>' +
+    '<code>sensor.old_*</code> — all sensors starting with old_<br>' +
+    '<code>*_deprecated</code> — any entity ending with _deprecated<br>' +
+    '<code>sensor.*_temp</code> — sensors ending with _temp<br><br>' +
+    'Globs use standard Unix fnmatch syntax. <b>*</b> matches any string, <b>?</b> matches one character.';
+  document.getElementById('btn-modal-del').style.display = 'none';
+  document.getElementById('overlay').classList.add('show');
+}
 document.getElementById('ignore-input').addEventListener('keydown', e => { if (e.key==='Enter') ignoreAdd(); });
+document.getElementById('saved-ig-input').addEventListener('keydown', e => { if (e.key==='Enter') savedIgAdd(); });
+loadSavedIgnoreList();
 </script>
 </body>
 </html>
