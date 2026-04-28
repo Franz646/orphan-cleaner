@@ -50,12 +50,20 @@ async def _handle_scan(request: web.Request) -> web.Response:
     raw_ignore = request.rel_url.query.get("ignore_platforms", "")
     ignore_platforms = {p.strip() for p in raw_ignore.split(",") if p.strip()} if raw_ignore else set()
 
+    # Merge session ignore + saved default list
+    saved = hass.data.get(DOMAIN, {}).get("ignore_list", [])
+    # Separate globs (contain * or ?) from plain platforms
+    saved_platforms = {e for e in saved if "*" not in e and "?" not in e and "." not in e}
+    saved_globs     = [e for e in saved if "*" in e or "?" in e or "." in e]
+    all_platforms   = ignore_platforms | saved_platforms
+
     try:
         from homeassistant.helpers import entity_registry as er
         registry = er.async_get(hass)
         total    = len(registry.entities)
         orphans  = detect_orphans(hass, min_age_hours=min_age, aggressive=aggressive,
-                                  ignore_platforms=ignore_platforms)
+                                  ignore_platforms=all_platforms,
+                                  ignore_globs=saved_globs)
         return web.Response(
             content_type="application/json",
             text=json.dumps({
@@ -143,6 +151,41 @@ async def _handle_export(request: web.Request) -> web.Response:
                             text=json.dumps({"error": "Internal server error"}))
 
 
+async def _handle_get_ignore(request: web.Request) -> web.Response:
+    """GET /api/orphan_cleaner/ignore_list — restituisce la lista salvata."""
+    hass: HomeAssistant = request.app["hass"]
+    ignore_list = hass.data.get(DOMAIN, {}).get("ignore_list", [])
+    return web.Response(
+        content_type="application/json",
+        text=json.dumps({"ignore_list": ignore_list}),
+    )
+
+
+async def _handle_set_ignore(request: web.Request) -> web.Response:
+    """POST /api/orphan_cleaner/ignore_list — salva la lista."""
+    hass: HomeAssistant = request.app["hass"]
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, content_type="application/json",
+                            text='{"error":"JSON non valido"}')
+    ignore_list = body.get("ignore_list", [])
+    if not isinstance(ignore_list, list):
+        return web.Response(status=400, content_type="application/json",
+                            text='{"error":"ignore_list deve essere un array"}')
+    hass.data.setdefault(DOMAIN, {})["ignore_list"] = ignore_list
+    # Persisti nelle opzioni della config entry
+    entries = hass.config_entries.async_entries(DOMAIN)
+    if entries:
+        entry = entries[0]
+        new_options = {**entry.options, "ignore_list": ignore_list}
+        hass.config_entries.async_update_entry(entry, options=new_options)
+    return web.Response(
+        content_type="application/json",
+        text=json.dumps({"ok": True, "count": len(ignore_list)}),
+    )
+
+
 async def _handle_js(request: web.Request) -> web.Response:
     """Serve il file JavaScript del custom panel."""
     js_path = FRONTEND_DIR / "orphan-cleaner-panel.js"
@@ -185,6 +228,8 @@ def async_register_views(hass: HomeAssistant, app) -> None:
     app.router.add_get("/api/orphan_cleaner/scan",                    _handle_scan)
     app.router.add_post("/api/orphan_cleaner/delete",                 _handle_delete)
     app.router.add_post("/api/orphan_cleaner/export",                 _handle_export)
+    app.router.add_get("/api/orphan_cleaner/ignore_list",             _handle_get_ignore)
+    app.router.add_post("/api/orphan_cleaner/ignore_list",            _handle_set_ignore)
     app.router.add_get("/api/orphan_cleaner/orphan-cleaner-panel.js", _handle_js)
     app.router.add_get("/api/orphan_cleaner/icon.png",                _handle_icon)
     _LOGGER.debug("Route Orphan Cleaner registrate")

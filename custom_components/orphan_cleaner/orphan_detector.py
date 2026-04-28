@@ -3,6 +3,7 @@ Orphan entity detection logic.
 """
 from __future__ import annotations
 
+import fnmatch
 import time
 import logging
 from dataclasses import dataclass, asdict
@@ -52,6 +53,7 @@ def detect_orphans(
     min_age_hours: int = 24,
     aggressive: bool = False,
     ignore_platforms: set[str] | None = None,
+    ignore_globs: list[str] | None = None,
 ) -> list[OrphanInfo]:
 
     entity_registry  = er.async_get(hass)
@@ -59,13 +61,22 @@ def detect_orphans(
     orphans: list[OrphanInfo] = []
     seen: set[str]   = set()
     _ignore          = ignore_platforms or set()
+    _globs           = ignore_globs or []
+
+    def _is_ignored(entity_id: str, platform: str) -> bool:
+        if platform and platform in _ignore:
+            return True
+        for pattern in _globs:
+            if fnmatch.fnmatch(entity_id, pattern) or platform == pattern:
+                return True
+        return False
 
     for entry in entity_registry.entities.values():
         platform     = entry.platform or ""
         cfg_entry_id = entry.config_entry_id
 
-        # Skip platforms the user wants to ignore
-        if platform and platform in _ignore:
+        # Skip platforms/globs the user wants to ignore
+        if _is_ignored(entry.entity_id, platform):
             continue
 
         # Method 1: orphaned_timestamp

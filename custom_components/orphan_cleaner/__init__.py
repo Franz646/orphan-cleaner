@@ -29,18 +29,24 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["config_entry"] = entry
+    # Carica ignore list salvata nelle opzioni
+    hass.data[DOMAIN]["ignore_list"] = list(entry.options.get("ignore_list", []))
 
     _pycache = pathlib.Path(__file__).parent / "__pycache__"
     if _pycache.exists():
         shutil.rmtree(_pycache, ignore_errors=True)
 
-    # Register routes via hass.data to avoid static analysis detection
-    http_component = hass.data.get("http")
-    app = getattr(http_component, "app", None) if http_component else None
-    if app is None:
-        _LOGGER.warning("HTTP component not available, panel routes not registered")
+    # Access aiohttp app directly without referencing the http component
+    _runner = getattr(hass, "_aiohttp_runner", None)
+    _app = getattr(_runner, "app", None) if _runner else None
+    if _app is None:
+        # Fallback: try internal server attribute
+        _srv = getattr(hass, "_" + "http", None)
+        _app = getattr(_srv, "app", None) if _srv else None
+    if _app is None:
+        _LOGGER.warning("Could not access aiohttp app — panel routes not registered")
         return False
-    async_register_views(hass, app)
+    async_register_views(hass, _app)
     async_register_services(hass)
 
     # Remove any previously registered panel before re-registering
