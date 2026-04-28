@@ -34,19 +34,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _pycache = pathlib.Path(__file__).parent / "__pycache__"
     if _pycache.exists():
-        shutil.rmtree(_pycache, ignore_errors=True)
+        await hass.async_add_executor_job(
+            lambda: shutil.rmtree(_pycache, ignore_errors=True)
+        )
 
-    # Access aiohttp app directly without referencing the http component
-    _runner = getattr(hass, "_aiohttp_runner", None)
-    _app = getattr(_runner, "app", None) if _runner else None
-    if _app is None:
-        # Fallback: try internal server attribute
-        _srv = getattr(hass, "_" + "http", None)
-        _app = getattr(_srv, "app", None) if _srv else None
-    if _app is None:
-        _LOGGER.warning("Could not access aiohttp app — panel routes not registered")
-        return False
-    async_register_views(hass, _app)
+    async_register_views(hass, hass.http.app)
     async_register_services(hass)
 
     # Remove any previously registered panel before re-registering
