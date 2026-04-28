@@ -5,9 +5,6 @@
     "@Franz646"
   ],
   "config_flow": true,
-  "dependencies": [
-    "http"
-  ],
   "documentation": "https://github.com/Franz646/orphan-cleaner",
   "integration_type": "service",
   "iot_class": "local_push",

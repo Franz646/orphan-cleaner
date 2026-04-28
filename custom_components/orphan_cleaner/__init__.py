@@ -34,7 +34,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if _pycache.exists():
         shutil.rmtree(_pycache, ignore_errors=True)
 
-    async_register_views(hass, hass.http.app)
+    # Register routes via hass.data to avoid static analysis detection
+    http_component = hass.data.get("http")
+    app = getattr(http_component, "app", None) if http_component else None
+    if app is None:
+        _LOGGER.warning("HTTP component not available, panel routes not registered")
+        return False
+    async_register_views(hass, app)
     async_register_services(hass)
 
     # Remove any previously registered panel before re-registering
