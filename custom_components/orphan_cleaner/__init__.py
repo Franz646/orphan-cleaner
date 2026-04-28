@@ -34,7 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if _pycache.exists():
         shutil.rmtree(_pycache, ignore_errors=True)
 
-    async_register_views(hass)
+    async_register_views(hass, hass.http.app)
     async_register_services(hass)
 
     # Remove any previously registered panel before re-registering

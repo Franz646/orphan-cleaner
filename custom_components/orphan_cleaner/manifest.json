@@ -1,9 +1,6 @@
 {
   "domain": "orphan_cleaner",
   "name": "Orphan Entity Cleaner",
-  "after_dependencies": [
-    "http"
-  ],
   "codeowners": [
     "@Franz646"
   ],

@@ -1,181 +1,169 @@
 """
 Endpoint HTTP per il panel web di Orphan Entity Cleaner.
-Registra una view aiohttp direttamente nel server HTTP di Home Assistant.
+Registra le route direttamente su aiohttp.
 """
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import pathlib
 
 from aiohttp import web
-from homeassistant.components.http.view import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, CONF_MIN_AGE_HOURS, CONF_AGGRESSIVE, DEFAULT_MIN_AGE_HOURS, DEFAULT_AGGRESSIVE
+from .const import DOMAIN, CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS
 from .orphan_detector import detect_orphans, async_delete_entities
 
 _LOGGER = logging.getLogger(__name__)
 
 FRONTEND_DIR = pathlib.Path(__file__).parent / "frontend"
+IMAGES_DIR   = pathlib.Path(__file__).parent / "images"
 
 
-class OrphanCleanerIndexView(HomeAssistantView):
+# ---------------------------------------------------------------------------
+# Handlers
+# ---------------------------------------------------------------------------
+
+async def _handle_panel(request: web.Request) -> web.Response:
     """Serve la pagina HTML del panel."""
+    hass: HomeAssistant = request.app["hass"]
+    html = await hass.async_add_executor_job(
+        (FRONTEND_DIR / "panel.html").read_text, "utf-8"
+    )
+    return web.Response(
+        content_type="text/html",
+        text=html,
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+    )
 
-    url          = "/api/orphan_cleaner/panel"
-    name         = "api:orphan_cleaner:panel"
-    requires_auth = False
 
-    async def get(self, request: web.Request) -> web.Response:
-        html = await request.loop.run_in_executor(
-            None, (FRONTEND_DIR / "panel.html").read_text, "utf-8"
+async def _handle_scan(request: web.Request) -> web.Response:
+    """Endpoint GET /api/orphan_cleaner/scan."""
+    hass: HomeAssistant = request.app["hass"]
+
+    entry  = _get_config_entry(hass)
+    config = {**entry.data, **entry.options} if entry else {}
+
+    min_age    = int(request.rel_url.query.get("min_age", config.get(CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS)))
+    aggressive = request.rel_url.query.get("heuristic", "0") == "1"
+    raw_ignore = request.rel_url.query.get("ignore_platforms", "")
+    ignore_platforms = {p.strip() for p in raw_ignore.split(",") if p.strip()} if raw_ignore else set()
+
+    try:
+        from homeassistant.helpers import entity_registry as er
+        registry = er.async_get(hass)
+        total    = len(registry.entities)
+        orphans  = detect_orphans(hass, min_age_hours=min_age, aggressive=aggressive,
+                                  ignore_platforms=ignore_platforms)
+        return web.Response(
+            content_type="application/json",
+            text=json.dumps({
+                "total":            total,
+                "orphans":          [o.as_dict() for o in orphans],
+                "min_age":          min_age,
+                "aggressive":       aggressive,
+                "ignore_platforms": list(ignore_platforms),
+                "error":            None,
+            }),
+        )
+    except Exception:
+        _LOGGER.exception("Errore scansione API")
+        return web.Response(
+            status=500,
+            content_type="application/json",
+            text=json.dumps({"error": "Internal server error", "orphans": [], "total": 0}),
+        )
+
+
+async def _handle_delete(request: web.Request) -> web.Response:
+    """Endpoint POST /api/orphan_cleaner/delete."""
+    hass: HomeAssistant = request.app["hass"]
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, content_type="application/json",
+                            text='{"error":"JSON non valido"}')
+
+    entity_ids = body.get("entity_ids", [])
+    if not entity_ids:
+        return web.Response(status=400, content_type="application/json",
+                            text='{"error":"entity_ids mancante o vuoto"}')
+    try:
+        deleted, failed = await async_delete_entities(hass, entity_ids)
+        return web.Response(
+            content_type="application/json",
+            text=json.dumps({
+                "deleted":       deleted,
+                "failed":        failed,
+                "deleted_count": len(deleted),
+                "failed_count":  len(failed),
+            }),
+        )
+    except Exception:
+        _LOGGER.exception("Errore delete API")
+        return web.Response(status=500, content_type="application/json",
+                            text=json.dumps({"error": "Internal server error"}))
+
+
+async def _handle_export(request: web.Request) -> web.Response:
+    """Endpoint POST /api/orphan_cleaner/export."""
+    hass: HomeAssistant = request.app["hass"]
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, content_type="application/json",
+                            text='{"error":"JSON non valido"}')
+
+    entity_ids = body.get("entity_ids", [])
+    orphans    = body.get("orphans", [])
+    if not entity_ids:
+        return web.Response(status=400, content_type="application/json",
+                            text='{"error":"entity_ids mancante o vuoto"}')
+
+    ts       = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"orphan_cleaner_backup_{ts}.json"
+    path     = pathlib.Path(hass.config.config_dir) / filename
+    payload  = {
+        "exported_at":  datetime.datetime.now().isoformat(),
+        "entity_count": len(entity_ids),
+        "entities":     [o for o in orphans if o.get("entity_id") in entity_ids],
+    }
+    try:
+        await hass.async_add_executor_job(
+            path.write_text, json.dumps(payload, indent=2, ensure_ascii=False)
         )
         return web.Response(
-            content_type="text/html",
-            text=html,
-            headers={"Cache-Control": "no-store, no-cache, must-revalidate"},
+            content_type="application/json",
+            text=json.dumps({"ok": True, "filename": filename, "path": str(path)}),
         )
+    except Exception:
+        _LOGGER.exception("Errore export API")
+        return web.Response(status=500, content_type="application/json",
+                            text=json.dumps({"error": "Internal server error"}))
 
 
-class OrphanCleanerScanView(HomeAssistantView):
-    """Endpoint GET /api/orphan_cleaner/scan — restituisce le entità orfane in JSON."""
-
-    url          = "/api/orphan_cleaner/scan"
-    name         = "api:orphan_cleaner:scan"
-    requires_auth = False
-
-    async def get(self, request: web.Request) -> web.Response:
-        hass: HomeAssistant = request.app["hass"]
-
-        entry  = _get_config_entry(hass)
-        config = {**entry.data, **entry.options} if entry else {}
-
-        min_age    = int(request.rel_url.query.get("min_age", config.get(CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS)))
-        aggressive = request.rel_url.query.get("heuristic", "0") == "1"
-        raw_ignore = request.rel_url.query.get("ignore_platforms", "")
-        ignore_platforms = {p.strip() for p in raw_ignore.split(",") if p.strip()} if raw_ignore else set()
-
-        try:
-            from homeassistant.helpers import entity_registry as er
-            registry = er.async_get(hass)
-            total    = len(registry.entities)
-            orphans  = detect_orphans(hass, min_age_hours=min_age, aggressive=aggressive,
-                                      ignore_platforms=ignore_platforms)
-
-            return web.Response(
-                content_type="application/json",
-                text=json.dumps({
-                    "total":            total,
-                    "orphans":          [o.as_dict() for o in orphans],
-                    "min_age":          min_age,
-                    "aggressive":       aggressive,
-                    "ignore_platforms": list(ignore_platforms),
-                    "error":            None,
-                }),
-            )
-        except Exception as exc:
-            _LOGGER.exception("Errore scansione API")
-            return web.Response(
-                status=500,
-                content_type="application/json",
-                text=json.dumps({"error": "Internal server error", "orphans": [], "total": 0}),
-            )
+async def _handle_js(request: web.Request) -> web.Response:
+    """Serve il file JavaScript del custom panel."""
+    js_path = FRONTEND_DIR / "orphan-cleaner-panel.js"
+    if not js_path.exists():
+        raise web.HTTPNotFound()
+    hass: HomeAssistant = request.app["hass"]
+    data = await hass.async_add_executor_job(js_path.read_bytes)
+    return web.Response(body=data, content_type="application/javascript",
+                        headers={"Cache-Control": "no-cache"})
 
 
-class OrphanCleanerDeleteView(HomeAssistantView):
-    """Endpoint POST /api/orphan_cleaner/delete — elimina le entità specificate."""
+async def _handle_icon(request: web.Request) -> web.Response:
+    """Serve l'icona PNG."""
+    icon_path = IMAGES_DIR / "icon.png"
+    if not icon_path.exists():
+        raise web.HTTPNotFound()
+    hass: HomeAssistant = request.app["hass"]
+    data = await hass.async_add_executor_job(icon_path.read_bytes)
+    return web.Response(body=data, content_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
 
-    url          = "/api/orphan_cleaner/delete"
-    name         = "api:orphan_cleaner:delete"
-    requires_auth = False
-
-    async def post(self, request: web.Request) -> web.Response:
-        hass: HomeAssistant = request.app["hass"]
-
-        try:
-            body = await request.json()
-        except Exception:
-            return web.Response(status=400, text='{"error":"JSON non valido"}',
-                                content_type="application/json")
-
-        entity_ids = body.get("entity_ids", [])
-        if not entity_ids:
-            return web.Response(status=400,
-                                text='{"error":"entity_ids mancante o vuoto"}',
-                                content_type="application/json")
-
-        try:
-            deleted, failed = await async_delete_entities(hass, entity_ids)
-            return web.Response(
-                content_type="application/json",
-                text=json.dumps({
-                    "deleted":       deleted,
-                    "failed":        failed,
-                    "deleted_count": len(deleted),
-                    "failed_count":  len(failed),
-                }),
-            )
-        except Exception as exc:
-            _LOGGER.exception("Errore delete API")
-            return web.Response(
-                status=500,
-                content_type="application/json",
-                text=json.dumps({"error": "Internal server error"}),
-            )
-
-
-
-class OrphanCleanerExportView(HomeAssistantView):
-    """Endpoint POST /api/orphan_cleaner/export — salva le entità selezionate in un file JSON."""
-
-    url          = "/api/orphan_cleaner/export"
-    name         = "api:orphan_cleaner:export"
-    requires_auth = False
-
-    async def post(self, request: web.Request) -> web.Response:
-        hass: HomeAssistant = request.app["hass"]
-
-        try:
-            body = await request.json()
-        except Exception:
-            return web.Response(status=400, text='{"error":"JSON non valido"}',
-                                content_type="application/json")
-
-        entity_ids = body.get("entity_ids", [])
-        orphans    = body.get("orphans", [])
-
-        if not entity_ids:
-            return web.Response(status=400,
-                                text='{"error":"entity_ids mancante o vuoto"}',
-                                content_type="application/json")
-
-        import datetime, pathlib
-        ts       = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"orphan_cleaner_backup_{ts}.json"
-        path     = pathlib.Path(hass.config.config_dir) / filename
-
-        payload  = {
-            "exported_at": datetime.datetime.now().isoformat(),
-            "entity_count": len(entity_ids),
-            "entities": [o for o in orphans if o.get("entity_id") in entity_ids],
-        }
-
-        try:
-            await hass.async_add_executor_job(
-                path.write_text, json.dumps(payload, indent=2, ensure_ascii=False)
-            )
-            return web.Response(
-                content_type="application/json",
-                text=json.dumps({"ok": True, "filename": filename, "path": str(path)}),
-            )
-        except Exception as exc:
-            _LOGGER.exception("Errore export API")
-            return web.Response(
-                status=500,
-                content_type="application/json",
-                text=json.dumps({"error": "Internal server error"}),
-            )
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -187,54 +175,16 @@ def _get_config_entry(hass: HomeAssistant):
     return entries[0] if entries else None
 
 
+# ---------------------------------------------------------------------------
+# Registration
+# ---------------------------------------------------------------------------
 
-class OrphanCleanerJsView(HomeAssistantView):
-    """Serve il file JavaScript del custom panel."""
-
-    url           = "/api/orphan_cleaner/orphan-cleaner-panel.js"
-    name          = "api:orphan_cleaner:js"
-    requires_auth = False
-
-    async def get(self, request: web.Request) -> web.Response:
-        js_path = FRONTEND_DIR / "orphan-cleaner-panel.js"
-        if not js_path.exists():
-            raise web.HTTPNotFound()
-        data = await request.loop.run_in_executor(None, js_path.read_bytes)
-        return web.Response(
-            body=data,
-            content_type="application/javascript",
-            headers={"Cache-Control": "no-cache"},
-        )
-
-
-def async_register_views(hass: HomeAssistant) -> None:
-    """Registra tutte le view HTTP nel server di HA."""
-    hass.http.register_view(OrphanCleanerIconView())
-    hass.http.register_view(OrphanCleanerJsView())
-    hass.http.register_view(OrphanCleanerIndexView())
-    hass.http.register_view(OrphanCleanerScanView())
-    hass.http.register_view(OrphanCleanerDeleteView())
-    hass.http.register_view(OrphanCleanerExportView())
-    _LOGGER.debug("View HTTP Orphan Cleaner registrate")
-
-
-IMAGES_DIR = pathlib.Path(__file__).parent / "images"
-
-
-class OrphanCleanerIconView(HomeAssistantView):
-    """Serve l'icona PNG dell'integrazione."""
-
-    url           = "/api/orphan_cleaner/icon.png"
-    name          = "api:orphan_cleaner:icon"
-    requires_auth = False   # deve essere pubblica per il frontend HA
-
-    async def get(self, request: web.Request) -> web.Response:
-        icon_path = IMAGES_DIR / "icon.png"
-        if not icon_path.exists():
-            raise web.HTTPNotFound()
-        data = await request.loop.run_in_executor(None, icon_path.read_bytes)
-        return web.Response(
-            body=data,
-            content_type="image/png",
-            headers={"Cache-Control": "public, max-age=86400"},
-        )
+def async_register_views(hass: HomeAssistant, app) -> None:
+    """Registra le route direttamente su aiohttp."""
+    app.router.add_get("/api/orphan_cleaner/panel",                   _handle_panel)
+    app.router.add_get("/api/orphan_cleaner/scan",                    _handle_scan)
+    app.router.add_post("/api/orphan_cleaner/delete",                 _handle_delete)
+    app.router.add_post("/api/orphan_cleaner/export",                 _handle_export)
+    app.router.add_get("/api/orphan_cleaner/orphan-cleaner-panel.js", _handle_js)
+    app.router.add_get("/api/orphan_cleaner/icon.png",                _handle_icon)
+    _LOGGER.debug("Route Orphan Cleaner registrate")
