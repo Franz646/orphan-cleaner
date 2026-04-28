@@ -1,7 +1,9 @@
 {
   "domain": "orphan_cleaner",
   "name": "Orphan Entity Cleaner",
-  "codeowners": ["@Franz646"],
+  "codeowners": [
+    "@Franz646"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/Franz646/orphan-cleaner",
   "integration_type": "service",
