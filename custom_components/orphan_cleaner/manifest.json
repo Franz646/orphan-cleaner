@@ -1,13 +1,14 @@
 {
   "domain": "orphan_cleaner",
   "name": "Orphan Entity Cleaner",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "documentation": "https://github.com/Franz646/orphan-cleaner",
   "issue_tracker": "https://github.com/Franz646/orphan-cleaner/issues",
   "codeowners": [
     "@Franz646"
   ],
   "requirements": [],
+  "dependencies": ["http"],
   "iot_class": "local_push",
   "config_flow": true,
   "integration_type": "service"
