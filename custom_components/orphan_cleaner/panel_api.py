@@ -9,7 +9,7 @@ import logging
 import pathlib
 
 from aiohttp import web
-from homeassistant.components.http import HomeAssistantView
+from homeassistant.components.http.view import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, CONF_MIN_AGE_HOURS, CONF_AGGRESSIVE, DEFAULT_MIN_AGE_HOURS, DEFAULT_AGGRESSIVE
