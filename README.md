@@ -11,6 +11,8 @@ A custom integration that finds and deletes **orphan entities** — entities lef
 
 ### Via HACS (recommended)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Franz646&repository=orphan-cleaner&category=Integration)
+
 1. In HACS → **Integrations → ⋮ → Custom repositories**
 2. Add the URL of this repository, category **Integration**
 3. Search for **Orphan Entity Cleaner** and install
