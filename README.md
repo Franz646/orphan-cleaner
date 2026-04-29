@@ -38,15 +38,26 @@ After installation, the **Orphan Cleaner** icon appears in the HA sidebar. All s
 | **Scan** | Scans the registry and populates the table |
 | **Heuristic** | Enables detection method 4 (see below) |
 | **Min age (h)** | Minimum age in hours for an entity to be flagged |
-| **Ignore platforms** | Add platform names to exclude from results (e.g. `tuya`, `shelly`) |
+| **Ignore** | Add platforms or globs to exclude from the current session |
+| **Default ignore list** | Persistent ignore list, pre-loaded on every scan (see below) |
 | **Filter** | Filter visible results by entity_id or platform |
 | **Select all / Deselect** | Bulk checkbox controls |
 | **Delete selected** | Delete selected entities with a confirmation dialog |
 | **Save & Delete** | Save a JSON backup of selected entities to `/config/` before deleting |
 
-### Ignore Platforms
+### Ignore (session)
 
-Type a platform name in the **Ignore platforms** field and press **Enter** or **+ Add**. The platform appears as a removable pill tag. Ignored entities remain visible in the table but are greyed out and non-interactive. The orphan counter reflects the exclusion. The ignore list is applied immediately and persists across rescans during the same session.
+Type a platform name or glob pattern in the **Ignore** field in the control bar and press **Enter** or **+ Add**. Ignored entities remain visible in the table but are greyed out and non-interactive. The orphan counter reflects the exclusion. This list is temporary and resets on page reload.
+
+### Default ignore list (persistent)
+
+A collapsible section below the control bar. Entries here are saved to the integration's config entry options and automatically loaded on every scan and page load. Supports:
+
+- **Platform names** — `tuya`, `shelly`, `imou_life`
+- **Platform globs** — `imou_*`, `tuya_*`
+- **Entity ID globs** — `sensor.old_*`, `*_deprecated`, `sensor.*_temp`
+
+Press **💾 Save** to persist the current list. Use the **?** link for a full syntax reference.
 
 ### Save & Delete
 
@@ -152,7 +163,7 @@ custom_components/orphan_cleaner/
 ├── const.py              ← constants
 ├── manifest.json         ← integration metadata
 ├── orphan_detector.py    ← detection and deletion logic
-├── panel_api.py          ← HTTP views (panel, scan, delete, export)
+├── panel_api.py          ← HTTP views (panel, scan, delete, export, ignore list)
 ├── services.py           ← HA services (scan, delete_orphans)
 ├── services.yaml         ← service documentation for Developer Tools
 ├── strings.json          ← UI labels
