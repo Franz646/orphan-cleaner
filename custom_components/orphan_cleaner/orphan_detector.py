@@ -67,7 +67,9 @@ def detect_orphans(
         if platform and platform in _ignore:
             return True
         for pattern in _globs:
-            if fnmatch.fnmatch(entity_id, pattern) or platform == pattern:
+            if (fnmatch.fnmatch(entity_id, pattern)
+                    or fnmatch.fnmatch(platform, pattern)
+                    or platform == pattern):
                 return True
         return False
 
