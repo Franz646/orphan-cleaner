@@ -72,9 +72,9 @@
   .stat-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; margin-bottom: 12px; }
   .stat { background: var(--surface2); border-radius: var(--radius-sm); padding: 7px 14px;
     display: flex; align-items: center; gap: 10px; }
-  .s-label { font-size: 11px; color: var(--primary-text-color, var(--text1)); text-transform: uppercase;
-    letter-spacing: 0.03em; flex: 1; opacity: 0.85; }
-  .s-val   { font-size: 22px; font-weight: 600; }
+  .s-label { font-size: 12px; font-weight: 500; color: var(--primary-text-color, #ffffff);
+    text-transform: uppercase; letter-spacing: 0.03em; flex: 1; }
+  .s-val   { font-size: 22px; font-weight: 700; }
   .s-danger .s-val { color: var(--red); }
   .s-ok    .s-val  { color: var(--green); }
   .s-warn  .s-val  { color: #BA7517; }
@@ -195,15 +195,16 @@
   tr.ignored td { color:var(--text3); }
   .ignore-section { background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:8px; overflow:hidden; }
   .ignore-header { display:flex; align-items:center; justify-content:space-between;
-    padding:7px 14px; cursor:pointer; user-select:none; font-size:12px; color:var(--text2); }
+    padding:7px 14px; cursor:pointer; user-select:none; font-size:13px; font-weight:500;
+    color:var(--primary-text-color, #ffffff); }
   .ignore-header:hover { background:rgba(255,255,255,.03); }
   .ignore-badge { background:rgba(46,204,113,.15); color:#2ecc71; border-radius:99px;
     font-size:10px; padding:1px 7px; margin-left:6px; }
-  .ignore-arrow { font-size:10px; color:var(--text3); transition:transform .2s; margin-left:auto; }
+  .ignore-arrow { font-size:12px; color:var(--primary-text-color, #ffffff); opacity:0.6; transition:transform .2s; margin-left:auto; }
   .ignore-arrow.open { transform:rotate(180deg); }
   .ignore-body { border-top:.5px solid var(--border2); padding:8px 14px 10px; display:none; }
   .ignore-body.open { display:block; }
-  .ignore-hint { font-size:11px; color:var(--text3); margin-bottom:8px; }
+  .ignore-hint { font-size:12px; color:var(--primary-text-color, #ffffff); opacity:0.7; margin-bottom:8px; }
   .ignore-input-row { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
   .ignore-input-row input[type=text] { width:150px; font-size:12px; }
   .ignore-saved-tags { display:flex; flex-wrap:wrap; gap:5px; min-height:18px; align-items:center; }
@@ -236,7 +237,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.3.3</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.3.4</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
