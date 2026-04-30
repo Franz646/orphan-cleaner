@@ -178,18 +178,14 @@
     font-size:13px; }
   .ctrl-bar label { display:flex; align-items:center; gap:5px; cursor:pointer; }
   .ctrl-sep { width:1px; height:18px; background:var(--border2); }
-  .ctrl-bar input[type=number] { width:58px; border:0.5px solid var(--border2);
-    border-radius:var(--radius-sm); padding:3px 7px; font-size:13px;
-    background:var(--surface); color:var(--text); text-align:center; }
+  .ctrl-bar input[type=number] { width:62px; border:0.5px solid var(--border2); border-radius:var(--radius-sm); padding:5px 9px; font-size:13px; background:var(--surface); color:var(--text); text-align:center; }
 
   .ignore-tag { display:inline-flex; align-items:center; gap:4px;
     background:var(--surface2); border:0.5px solid var(--border2);
     border-radius:99px; padding:2px 9px; font-size:11px; color:var(--text2); }
   .ignore-tag-x { cursor:pointer; opacity:0.5; font-size:13px; line-height:1; }
   .ignore-tag-x:hover { opacity:1; }
-  .ctrl-bar input[type=text] { border:0.5px solid var(--border2);
-    border-radius:var(--radius-sm); padding:3px 8px; font-size:12px;
-    background:var(--surface); color:var(--text); width:120px; }
+  .ctrl-bar input[type=text] { width:120px; border:0.5px solid var(--border2); border-radius:var(--radius-sm); padding:5px 9px; font-size:13px; background:var(--surface); color:var(--text); }
   .ctrl-bar button.btn-add { font-size:11px; padding:3px 9px; }
   tr.ignored { opacity:0.35; pointer-events:none; user-select:none; }
   tr.ignored td { color:var(--text3); }
@@ -206,7 +202,7 @@
   .ignore-body.open { display:block; }
   .ignore-hint { font-size:12px; color:var(--primary-text-color, #ffffff); opacity:0.7; margin-bottom:8px; }
   .ignore-input-row { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
-  .ignore-input-row input[type=text] { width:150px; font-size:12px; }
+  .ignore-input-row input[type=text] { width:150px; border:0.5px solid var(--border2); border-radius:var(--radius-sm); padding:5px 9px; font-size:13px; background:var(--surface); color:var(--text); }
   .ignore-saved-tags { display:flex; flex-wrap:wrap; gap:5px; min-height:18px; align-items:center; }
   .tag-saved { background:rgba(46,204,113,.12); border:.5px solid rgba(46,204,113,.3);
     border-radius:99px; padding:2px 9px; font-size:11px; color:#2ecc71;
@@ -237,7 +233,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.3.4</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.3.5</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
