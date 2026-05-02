@@ -40,6 +40,7 @@ After installation, the **Orphan Cleaner** icon appears in the HA sidebar. All s
 | **Min age (h)** | Minimum age in hours for an entity to be flagged |
 | **Ignore** | Add platforms or globs to exclude from the current session |
 | **Default ignore list** | Persistent ignore list, pre-loaded on every scan (see below) |
+| **Dry run** | Simulate deletion without removing anything (see below) |
 | **Filter** | Filter visible results by entity_id or platform |
 | **Select all / Deselect** | Bulk checkbox controls |
 | **Delete selected** | Delete selected entities with a confirmation dialog |
@@ -63,6 +64,25 @@ Press **💾 Save** to persist the current list. Use the **?** link for a full s
 
 **Save & Delete** exports a timestamped JSON backup of the selected entities to `/config/orphan_cleaner_backup_<timestamp>.json` before proceeding with deletion. If the backup fails, deletion is aborted. The backup contains entity metadata (entity_id, platform, detection method, age, disabled state) and can be used as a reference in case of accidental deletion.
 
+### Dry run
+
+Enable the **Dry run** checkbox in the toolbar before deleting. When active:
+
+- An amber warning banner appears to remind you that no changes will be made
+- **Delete selected** becomes **Simulate**
+- **Save & Delete** is hidden
+- Clicking **Simulate** highlights the selected entities with a `would delete` badge for 6 seconds and logs the result — nothing is actually removed
+
+Dry run is also available as a parameter in the `orphan_cleaner.delete_orphans` service (see Services section).
+
+### Scan comparison
+
+After the first scan, every subsequent scan shows a diff banner above the table:
+
+> *vs previous scan: 3 new ⬆ · 1 gone ⬇ · 108 unchanged*
+
+Entities that are new since the last scan are highlighted with a yellow `new` badge. The banner is hidden when results are identical to the previous scan.
+
 ---
 
 ## Detection Methods
@@ -71,7 +91,7 @@ Press **💾 Save** to persist the current list. Use the **?** link for a full s
 
 Home Assistant sets this field in the registry when, after a full restart, an entity is not claimed by any integration. This is the official signal and is always active.
 
-**Min age (h)** filters out recently orphaned entities, useful if an integration is temporarily offline.
+**Min age (h)** filters out recently orphaned entities, useful if an integration is temporarily offline. Ages above 24 hours are displayed in days (e.g. `377d`) in the panel table.
 
 ### Method 2 — Dead config entry
 
