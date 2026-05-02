@@ -188,6 +188,15 @@
   .ctrl-bar input[type=text] { width:120px; border:0.5px solid var(--border2); border-radius:var(--radius-sm); padding:5px 9px; font-size:13px; background:var(--surface); color:var(--text); }
   .ctrl-bar button.btn-add { font-size:11px; padding:3px 9px; }
   tr.ignored { opacity:0.35; pointer-events:none; user-select:none; }
+  .diff-banner { display:none; align-items:center; gap:12px; flex-wrap:wrap;
+    background:var(--surface2); border-radius:var(--radius-sm); padding:7px 14px;
+    margin-bottom:8px; font-size:12px; color:var(--text2); }
+  .diff-banner.show { display:flex; }
+  .diff-new  { color:#f59e0b; font-weight:600; }
+  .diff-gone { color:#6ee7b7; font-weight:600; }
+  .diff-same { color:var(--text3); }
+  .badge-new { background:#78350f; color:#fcd34d; border-radius:4px;
+    padding:1px 6px; font-size:10px; margin-left:5px; font-weight:600; }
   tr.ignored td { color:var(--text3); }
   .ignore-section { background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:8px; overflow:hidden; }
   .ignore-header { display:flex; align-items:center; justify-content:space-between;
@@ -233,7 +242,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.3.6</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.4.0</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -282,6 +291,14 @@
       </div>
       <div class="ignore-saved-tags" id="saved-ig-tags"></div>
     </div>
+  </div>
+
+  <!-- Diff banner -->
+  <div class="diff-banner" id="diff-banner">
+    <span>vs previous scan:</span>
+    <span class="diff-new"  id="diff-new">0 new</span>
+    <span class="diff-gone" id="diff-gone">0 gone</span>
+    <span class="diff-same" id="diff-same">0 unchanged</span>
   </div>
 
   <!-- Toolbar -->
@@ -348,6 +365,7 @@
 
 <script>
 let allOrphans       = [];
+let previousOrphans  = [];   // snapshot della scan precedente
 let selected         = new Set();
 let ignorePlatforms  = new Set();
 
@@ -489,6 +507,7 @@ async function doScan() {
     if (!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
     if (data.error) throw new Error(data.error);
+    previousOrphans = allOrphans.slice();   // snapshot prima di aggiornare
     allOrphans = data.orphans || [];
     const ts_n = allOrphans.filter(o => o.method === 'timestamp').length;
     const he_n = allOrphans.filter(o => o.method === 'heuristic').length;
@@ -498,6 +517,7 @@ async function doScan() {
     document.getElementById('btn-selall').disabled = false;
     document.getElementById('btn-desel').disabled  = false;
     applyIgnore();
+    showDiff();
     addLog('Scan complete: '+data.total+' total, '+allOrphans.length+' orphans ('+ts_n+' by timestamp, '+he_n+' heuristic).','ok');
     setStatus('Last scan: '+new Date().toLocaleTimeString('en-GB'),'ok');
   } catch(err) {
@@ -515,6 +535,35 @@ function confirmDelete() {
     +'This operation is <strong>irreversible</strong>. Continue?';
   document.getElementById('overlay').classList.add('show');
 }
+function showDiff() {
+  const banner = document.getElementById('diff-banner');
+  if (!previousOrphans.length) { banner.classList.remove('show'); return; }
+  const prevIds = new Set(previousOrphans.map(e => e.entity_id));
+  const currIds = new Set(allOrphans.map(e => e.entity_id));
+  const newCount  = allOrphans.filter(e => !prevIds.has(e.entity_id)).length;
+  const goneCount = previousOrphans.filter(e => !currIds.has(e.entity_id)).length;
+  const sameCount = allOrphans.filter(e => prevIds.has(e.entity_id)).length;
+  document.getElementById('diff-new').textContent  = newCount  + ' new ⬆';
+  document.getElementById('diff-gone').textContent = goneCount + ' gone ⬇';
+  document.getElementById('diff-same').textContent = sameCount + ' unchanged';
+  banner.classList.toggle('show', newCount > 0 || goneCount > 0);
+  // Aggiungi badge NEW alle righe nuove in tabella
+  if (newCount > 0) {
+    allOrphans.filter(e => !prevIds.has(e.entity_id)).forEach(e => {
+      const rows = document.querySelectorAll('tr');
+      rows.forEach(row => {
+        const eid = row.querySelector('.eid');
+        if (eid && eid.textContent === e.entity_id && !row.querySelector('.badge-new')) {
+          const badge = document.createElement('span');
+          badge.className = 'badge-new';
+          badge.textContent = 'new';
+          eid.after(badge);
+        }
+      });
+    });
+  }
+}
+
 function closeModal() {
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('btn-modal-del').style.display = '';
