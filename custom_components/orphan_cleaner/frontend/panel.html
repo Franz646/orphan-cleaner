@@ -220,6 +220,13 @@
     border-radius:var(--radius-sm); color:#2ecc71; font-size:11px; padding:3px 10px; cursor:pointer; }
   .btn-save-list:hover { background:rgba(46,204,113,.25); }
   .save-ok { font-size:11px; color:#2ecc71; opacity:0; transition:opacity .4s; margin-left:4px; }
+  .dry-run-wrap { display:flex; align-items:center; gap:6px; font-size:12px;
+    color:var(--text2); white-space:nowrap; }
+  .dry-run-wrap input[type=checkbox] { accent-color:#f59e0b; width:14px; height:14px; cursor:pointer; }
+  .dry-banner { display:none; background:rgba(245,158,11,.12); border:.5px solid rgba(245,158,11,.4);
+    border-radius:var(--radius-sm); padding:7px 14px; margin-bottom:8px;
+    font-size:12px; color:#f59e0b; }
+  .dry-banner.show { display:block; }
   .btn-save-del { background:#7a5200; border:none;
     border-radius:var(--radius-sm); color:#f5c842; font-size:13px; font-weight:500;
     padding:7px 13px; cursor:pointer; white-space:nowrap; }
@@ -242,7 +249,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.4.1</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.4.2</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -308,8 +315,14 @@
     <button id="btn-desel"  onclick="deselAll()" disabled>Deselect</button>
     <input  class="search" type="text" placeholder="Filter by entity_id or platform…"
             id="filter" oninput="applyFilter()" disabled>
+    <label class="dry-run-wrap" title="Simulate deletion without removing anything">
+      <input type="checkbox" id="dry-run-toggle" onchange="onDryRunToggle()"> Dry run
+    </label>
     <button class="btn-danger" id="btn-del" onclick="confirmDelete()" disabled>Delete selected</button>
     <button class="btn-save-del" id="btn-save-del" onclick="confirmSaveDelete()" disabled title="Save a backup JSON before deleting">Save &amp; Delete</button>
+  </div>
+  <div class="dry-banner" id="dry-banner">
+    🔍 <strong>Dry run mode</strong> — deletion will be simulated, nothing will actually be removed.
   </div>
 
   <!-- Table card -->
@@ -534,11 +547,65 @@ async function doScan() {
 
 function confirmDelete() {
   if (!selected.size) return;
+  if (isDryRun()) { doDryRun(); return; }
   document.getElementById('modal-msg').innerHTML =
     'You are about to delete <strong>'+selected.size+' entities</strong> from the Home Assistant registry.<br>'
     +'This operation is <strong>irreversible</strong>. Continue?';
   document.getElementById('overlay').classList.add('show');
 }
+function onDryRunToggle() {
+  const dry = document.getElementById('dry-run-toggle').checked;
+  document.getElementById('dry-banner').classList.toggle('show', dry);
+  document.getElementById('btn-del').textContent = dry ? 'Simulate' : 'Delete selected';
+  document.getElementById('btn-save-del').style.display = dry ? 'none' : '';
+}
+
+function isDryRun() {
+  return document.getElementById('dry-run-toggle').checked;
+}
+
+async function doDryRun() {
+  const ids = [...selected];
+  addLog('🔍 Dry run: simulating deletion of '+ids.length+' entities…', 'info');
+  setStatus('Dry run in progress…');
+  try {
+    const r = await fetch('/api/orphan_cleaner/delete', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ entity_ids: ids, dry_run: true })
+    });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    addLog('🔍 Dry run complete: '+d.deleted_count+' would be deleted, '+d.failed_count+' would fail.', 'ok');
+    setStatus('Dry run complete — nothing was deleted.');
+    ids.forEach(id => {
+      document.querySelectorAll('tr').forEach(row => {
+        const eid = row.querySelector('.eid');
+        if (eid && eid.textContent === id) {
+          row.style.outline = '1.5px solid #f59e0b';
+          row.style.opacity = '0.55';
+          if (!row.querySelector('.badge-dry')) {
+            const b = document.createElement('span');
+            b.className = 'badge-dry';
+            b.textContent = 'would delete';
+            b.style.cssText = 'background:#78350f;color:#fcd34d;border-radius:4px;padding:1px 6px;font-size:10px;margin-left:5px;';
+            eid.after(b);
+          }
+        }
+      });
+    });
+    setTimeout(() => {
+      document.querySelectorAll('tr').forEach(row => {
+        row.style.outline = '';
+        row.style.opacity = '';
+        row.querySelectorAll('.badge-dry').forEach(b => b.remove());
+      });
+    }, 6000);
+  } catch(err) {
+    addLog('Dry run error: '+err.message, 'err');
+    setStatus('Dry run failed.', 'err');
+  }
+}
+
 function showDiff() {
   const banner = document.getElementById('diff-banner');
   if (!previousOrphans.length) { banner.classList.remove('show'); return; }
