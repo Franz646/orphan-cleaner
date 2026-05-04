@@ -108,6 +108,10 @@
   thead th { padding: 8px 14px; text-align: left; font-size: 11px; font-weight: 500;
     color: var(--text2); text-transform: uppercase; letter-spacing: 0.03em;
     border-bottom: 0.5px solid var(--border); background: var(--surface2); white-space: nowrap; }
+  thead th.sortable { cursor: pointer; user-select: none; }
+  thead th.sortable:hover { color: var(--text1); }
+  thead th.sort-asc::after  { content: ' ↑'; opacity: 0.8; }
+  thead th.sort-desc::after { content: ' ↓'; opacity: 0.8; }
   .th-chk   { width: 38px; text-align: center; }
   .th-age   { width: 90px; }
   .th-method{ width: 170px; }
@@ -249,7 +253,7 @@
     <svg viewBox="0 0 24 24"><path d="M19.36 2.72 20.78 4.14l-1.4 1.41 1.41 1.41-4.24 4.24-1.41-1.41-6.89 6.9a4 4 0 0 1-1.2 4.71l-2.83 2.12-1.41-1.41 2.12-2.83a2 2 0 0 0 .27-2.1l-.27-.42L3 15.36l1.41-1.41 1.42 1.42 5.65-5.66-1.41-1.41 4.24-4.24 1.41 1.41z"/></svg>
   </div>
   <div>
-    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.4.2</span></div>
+    <div class="topbar-title">Orphan Entity Cleaner <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:6px">v2.4.3</span></div>
     <div class="topbar-sub">Home Assistant Integration — orphan entity cleanup</div>
   </div>
   <div class="topbar-spacer"></div>
@@ -378,6 +382,8 @@
 
 <script>
 let allOrphans       = [];
+let sortField        = null;   // campo corrente di ordinamento
+let sortDir          = 1;      // 1 = asc, -1 = desc
 let previousOrphans  = [];   // snapshot della scan precedente
 let selected         = new Set();
 let ignorePlatforms  = new Set();
@@ -435,13 +441,37 @@ function updateSelCount() {
   document.getElementById('btn-del').disabled      = selected.size === 0;
   document.getElementById('btn-save-del').disabled = selected.size === 0;
 }
+function sortBy(field) {
+  if (sortField === field) {
+    sortDir = -sortDir;
+  } else {
+    sortField = field;
+    sortDir = 1;
+  }
+  // Aggiorna classi header
+  document.querySelectorAll('thead th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+  });
+  const idx = ['entity_id','platform','method','age_hours'].indexOf(field);
+  const ths = document.querySelectorAll('thead th.sortable');
+  if (ths[idx]) ths[idx].classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+  renderTable(filteredOrphans());
+}
+
 function filteredOrphans() {
   const q    = (document.getElementById('filter').value || '').toLowerCase();
   const heur = document.getElementById('heur-on')?.checked;
   return allOrphans
     .filter(e => (heur || e.method !== 'heuristic') &&
                  (!q || e.entity_id.includes(q) || e.platform.includes(q)))
-    .map(e => ({ ...e, _ignored: ignorePlatforms.has((e.platform || '').trim().toLowerCase()) }));
+    .map(e => ({ ...e, _ignored: ignorePlatforms.has((e.platform || '').trim().toLowerCase()) }))
+    .sort((a, b) => {
+      if (!sortField) return 0;
+      let va = a[sortField], vb = b[sortField];
+      if (sortField === 'age_hours') { va = va ?? -1; vb = vb ?? -1; }
+      else { va = (va || '').toLowerCase(); vb = (vb || '').toLowerCase(); }
+      return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
 }
 function activeOrphans() {
   return filteredOrphans().filter(e => !e._ignored);
@@ -499,9 +529,10 @@ function renderTable(items) {
   wrap.innerHTML = `<table>
     <thead><tr>
       <th class="th-chk"><input type="checkbox" onchange="this.checked?selAll():deselAll()"></th>
-      <th>Entity ID</th><th>Platform</th>
-      <th class="th-method">Detection</th>
-      <th class="th-age">Age</th>
+      <th class="sortable" onclick="sortBy('entity_id')">Entity ID</th>
+      <th class="sortable" onclick="sortBy('platform')">Platform</th>
+      <th class="th-method sortable" onclick="sortBy('method')">Detection</th>
+      <th class="th-age sortable" onclick="sortBy('age_hours')">Age</th>
     </tr></thead>
     <tbody>${rows}</tbody></table>`;
 }
