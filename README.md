@@ -43,6 +43,7 @@ After installation, the **Orphan Cleaner** icon appears in the HA sidebar. All s
 | **Dry run** | Simulate deletion without removing anything (see below) |
 | **Filter** | Filter visible results by entity_id or platform |
 | **Select all / Deselect** | Bulk checkbox controls |
+| **Column headers** | Click to sort by Entity ID, Platform, Detection or Age — click again to reverse |
 | **Delete selected** | Delete selected entities with a confirmation dialog |
 | **Save & Delete** | Save a JSON backup of selected entities to `/config/` before deleting |
 
@@ -82,6 +83,10 @@ After the first scan, every subsequent scan shows a diff banner above the table:
 > *vs previous scan: 3 new ⬆ · 1 gone ⬇ · 108 unchanged*
 
 Entities that are new since the last scan are highlighted with a yellow `new` badge. The banner is hidden when results are identical to the previous scan.
+
+### Sortable columns
+
+Click any column header in the results table to sort by that field. Click again to reverse the order. The active sort direction is indicated by ↑ or ↓ next to the column name. Sortable columns: **Entity ID**, **Platform**, **Detection**, **Age**.
 
 ---
 
