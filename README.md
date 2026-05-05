@@ -4,8 +4,6 @@
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Franz646/orphan-cleaner/blob/main/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/Franz646/orphan-cleaner)](https://github.com/Franz646/orphan-cleaner/releases)
-[![GitHub Stars](https://img.shields.io/github/stars/Franz646/orphan-cleaner)](https://github.com/Franz646/orphan-cleaner/stargazers)
-[![GitHub Issues](https://img.shields.io/github/issues/Franz646/orphan-cleaner)](https://github.com/Franz646/orphan-cleaner/issues)
 [![Last Commit](https://img.shields.io/github/last-commit/Franz646/orphan-cleaner)](https://github.com/Franz646/orphan-cleaner/commits/main)
 
 A custom integration that finds and deletes **orphan entities** — entities left in the registry after the integration that created them has been removed or failed — via a web panel in the sidebar and services callable from scripts and automations.
