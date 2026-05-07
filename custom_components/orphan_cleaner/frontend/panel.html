@@ -261,7 +261,7 @@
 
   <!-- Controls -->
   <div class="ctrl-bar">
-    <label><input type="checkbox" id="heur-on" onchange="doScan()"> Heuristic</label>
+    <label><input type="checkbox" id="heur-on" onchange="if(allOrphans.length) doScan()"> Heuristic</label>
     <div class="ctrl-sep"></div>
     <span style="color:var(--text2)">Min age (h)</span>
     <input type="number" id="min-age" value="24" min="1" max="720">
