@@ -707,9 +707,8 @@ async function doDelete() {
       addLog('✓ Deleted: '+id,'ok');
     });
     (data.failed||[]).forEach(id => addLog('✗ Failed: '+id,'err'));
-    document.getElementById('s-orphan').textContent = allOrphans.length;
-    document.getElementById('s-heur').textContent   = allOrphans.filter(o=>o.method==='heuristic').length;
-    renderTable(filteredOrphans());
+    document.getElementById('s-heur').textContent = allOrphans.filter(o=>o.method==='heuristic').length;
+    applyIgnore();
     updateSelCount();
     addLog('Done: '+data.deleted_count+' deleted, '+data.failed_count+' failed.',
            data.failed_count > 0 ? 'warn' : 'ok');
@@ -800,6 +799,13 @@ function showGlobHelp() {
 document.getElementById('ignore-input').addEventListener('keydown', e => { if (e.key==='Enter') ignoreAdd(); });
 document.getElementById('saved-ig-input').addEventListener('keydown', e => { if (e.key==='Enter') savedIgAdd(); });
 loadSavedIgnoreList();
+// Reset contatori a — ad ogni caricamento pagina
+['s-total','s-orphan','s-heur','s-sel'].forEach(id => {
+  document.getElementById(id).textContent = '—';
+});
+document.getElementById('s-orphan').closest('.stat').className = 'stat';
+document.getElementById('s-heur').closest('.stat').className   = 'stat';
+document.getElementById('s-sel').closest('.stat').className    = 'stat';
 </script>
 </body>
 </html>
