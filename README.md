@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Franz646/orphan-cleaner/blob/main/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/Franz646/orphan-cleaner)](https://github.com/Franz646/orphan-cleaner/releases)
 [![Last Commit](https://img.shields.io/github/last-commit/Franz646/orphan-cleaner)](https://github.com/Franz646/orphan-cleaner/commits/main)
+[![Maintainer](https://img.shields.io/badge/maintainer-Francesco%20Beghi-blue)](https://github.com/Franz646)
 
 A custom integration that finds and deletes **orphan entities** — entities left in the registry after the integration that created them has been removed or failed — via a web panel in the sidebar and services callable from scripts and automations.
 
