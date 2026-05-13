@@ -192,6 +192,14 @@
   .ctrl-bar input[type=text] { width:120px; border:0.5px solid var(--border2); border-radius:var(--radius-sm); padding:5px 9px; font-size:13px; background:var(--surface); color:var(--text); }
   .ctrl-bar button.btn-add { font-size:11px; padding:3px 9px; }
   tr.ignored { opacity:0.35; pointer-events:none; user-select:none; }
+  .breakdown { display:none; font-size:11px; color:var(--text2); padding:4px 14px 6px;
+    gap:12px; flex-wrap:wrap; }
+  .breakdown.show { display:flex; }
+  .breakdown span { white-space:nowrap; }
+  .bd-dead { color:var(--text2); }
+  .bd-unav { color:#d4a017; }
+  .bd-ts   { color:var(--green); }
+  .bd-heur { color:#a78bfa; }
   .diff-banner { display:none; align-items:center; gap:12px; flex-wrap:wrap;
     background:var(--surface2); border-radius:var(--radius-sm); padding:7px 14px;
     margin-bottom:8px; font-size:12px; color:var(--text2); }
@@ -259,6 +267,17 @@
     <div class="stat">           <div class="s-label">Selected</div>        <div class="s-val" id="s-sel">—</div></div>
   </div>
 
+  <!-- Breakdown by detection method -->
+  <div class="breakdown" id="breakdown">
+    <span class="bd-dead" id="bd-dead">0 dead entry</span>
+    <span style="color:var(--text3)">·</span>
+    <span class="bd-unav" id="bd-unav">0 unavailable</span>
+    <span style="color:var(--text3)">·</span>
+    <span class="bd-ts"   id="bd-ts">0 timestamp</span>
+    <span style="color:var(--text3)">·</span>
+    <span class="bd-heur" id="bd-heur">0 heuristic</span>
+  </div>
+
   <!-- Controls -->
   <div class="ctrl-bar">
     <label><input type="checkbox" id="heur-on" onchange="if(allOrphans.length) doScan()"> Heuristic</label>
@@ -287,8 +306,6 @@
       <div class="ignore-input-row">
         <input type="text" id="saved-ig-input" placeholder="platform or glob…" />
         <button class="btn" onclick="savedIgAdd()" style="padding:3px 9px;font-size:11px;">+ Add</button>
-        <button class="btn-save-list" onclick="savedIgSave()">💾 Save</button>
-        <span class="save-ok" id="save-ok-msg">Saved ✓</span>
       </div>
       <div class="ignore-saved-tags" id="saved-ig-tags"></div>
     </div>
@@ -307,6 +324,14 @@
     <button class="btn-primary" id="btn-scan" onclick="doScan()">Scan</button>
     <button id="btn-selall" onclick="selAll()"   disabled>Select all</button>
     <button id="btn-desel"  onclick="deselAll()" disabled>Deselect</button>
+    <select id="method-filter" onchange="applyFilter()" disabled
+            style="background:var(--surface2);border:.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:13px;padding:6px 8px;cursor:pointer;">
+      <option value="">All methods</option>
+      <option value="dead_entry">Dead entry</option>
+      <option value="unavailable">Unavailable</option>
+      <option value="timestamp">Timestamp</option>
+      <option value="heuristic">Heuristic</option>
+    </select>
     <input  class="search" type="text" placeholder="Filter by entity_id or platform…"
             id="filter" oninput="applyFilter()" disabled>
     <label class="dry-run-wrap" title="Simulate deletion without removing anything">
@@ -393,6 +418,16 @@ function ignoreRemove(val) {
   renderIgnoreTags();
   applyIgnore();
 }
+function updateBreakdown() {
+  const active = filteredOrphans().filter(e => !e._ignored);
+  if (!active.length) { document.getElementById('breakdown').classList.remove('show'); return; }
+  document.getElementById('breakdown').classList.add('show');
+  document.getElementById('bd-dead').textContent = active.filter(e=>e.method==='dead_entry').length  + ' dead entry';
+  document.getElementById('bd-unav').textContent = active.filter(e=>e.method==='unavailable').length + ' unavailable';
+  document.getElementById('bd-ts').textContent   = active.filter(e=>e.method==='timestamp').length   + ' timestamp';
+  document.getElementById('bd-heur').textContent = active.filter(e=>e.method==='heuristic').length   + ' heuristic';
+}
+
 function applyIgnore() {
   const items  = filteredOrphans();
   const active = items.filter(e => !e._ignored);
@@ -405,6 +440,7 @@ function applyIgnore() {
     document.getElementById('tbl-title').textContent =
       active.length ? active.length + ' orphan entities' : 'No orphan entities found';
   }
+  updateBreakdown();
   updateSelCount();
 }
 function renderIgnoreTags() {
@@ -453,6 +489,7 @@ function filteredOrphans() {
   const heur = document.getElementById('heur-on')?.checked;
   return allOrphans
     .filter(e => (heur || e.method !== 'heuristic') &&
+                 (!method || e.method === method) &&
                  (!q || e.entity_id.includes(q) || e.platform.includes(q)))
     .map(e => ({ ...e, _ignored: ignorePlatforms.has((e.platform || '').trim().toLowerCase()) }))
     .sort((a, b) => {
@@ -511,7 +548,7 @@ function renderTable(items) {
     return `<tr>
       <td class="td-chk"><input type="checkbox" ${chk} onchange="toggleRow('${e.entity_id}',this.checked)"></td>
       <td><span class="eid">${e.entity_id}</span>${dis}</td>
-      <td><span class="platform-badge">${e.platform}</span></td>
+      <td><span class="platform-badge" onclick="selectByPlatform('${e.platform}')" style="cursor:pointer;" title="Select all ${e.platform} entities">${e.platform}</span></td>
       <td class="td-method">${badge}</td>
       <td class="td-age"><span class="age-text">${age}</span></td>
     </tr>`;
@@ -551,9 +588,10 @@ async function doScan() {
     document.getElementById('s-orphan').closest('.stat').className = 'stat s-danger';
     document.getElementById('s-heur').closest('.stat').className   = 'stat s-warn';
     document.getElementById('s-sel').closest('.stat').className    = 'stat s-ok';
-    document.getElementById('filter').disabled    = false;
-    document.getElementById('btn-selall').disabled = false;
-    document.getElementById('btn-desel').disabled  = false;
+    document.getElementById('filter').disabled         = false;
+    document.getElementById('method-filter').disabled  = false;
+    document.getElementById('btn-selall').disabled     = false;
+    document.getElementById('btn-desel').disabled      = false;
     applyIgnore();
     showDiff();
     addLog('Scan complete: '+data.total+' total, '+allOrphans.length+' orphans ('+ts_n+' by timestamp, '+he_n+' heuristic).','ok');
@@ -613,6 +651,13 @@ async function doDryRun() {
       row.querySelectorAll('.badge-dry').forEach(b => b.remove());
     });
   }, 6000);
+}
+
+function selectByPlatform(platform) {
+  filteredOrphans().filter(e => !e._ignored && e.platform === platform)
+    .forEach(e => selected.add(e.entity_id));
+  renderTable(filteredOrphans());
+  updateSelCount();
 }
 
 function showDiff() {
@@ -746,6 +791,15 @@ function renderSavedTags() {
   document.getElementById('saved-badge').textContent = savedIgnoreList.length + ' saved';
 }
 
+async function persistIgnoreList() {
+  try {
+    await fetch('/api/orphan_cleaner/ignore_list', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ignore_list: savedIgnoreList })
+    });
+  } catch(e) { /* silently fail */ }
+}
+
 function savedIgAdd() {
   const inp = document.getElementById('saved-ig-input');
   const val = inp.value.trim();
@@ -753,27 +807,15 @@ function savedIgAdd() {
   savedIgnoreList.push(val);
   inp.value = '';
   renderSavedTags();
+  applyIgnore();
+  persistIgnoreList();
 }
 
 function savedIgRemove(val) {
   savedIgnoreList = savedIgnoreList.filter(v => v !== val);
   renderSavedTags();
-}
-
-async function savedIgSave() {
-  try {
-    const r = await fetch('/api/orphan_cleaner/ignore_list', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ ignore_list: savedIgnoreList })
-    });
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    const ok = document.getElementById('save-ok-msg');
-    ok.style.opacity = '1';
-    setTimeout(() => ok.style.opacity = '0', 2000);
-    addLog('Default ignore list saved ('+savedIgnoreList.length+' entries).', 'ok');
-  } catch(e) {
-    addLog('Error saving ignore list: '+e.message, 'err');
-  }
+  applyIgnore();
+  persistIgnoreList();
 }
 
 function toggleIgnoreSection() {
