@@ -50,6 +50,8 @@ After installation, the **Orphan Cleaner** icon appears in the HA sidebar. All s
 | **Filter** | Filter visible results by entity_id or platform |
 | **Select all / Deselect** | Bulk checkbox controls |
 | **Column headers** | Click to sort by Entity ID, Platform, Detection or Age — click again to reverse |
+| **Platform badge** | Click on any platform badge to instantly select all entities of that platform |
+| **Detection filter** | Dropdown to show only dead entry, unavailable, timestamp or heuristic entities |
 | **Delete selected** | Delete selected entities with a confirmation dialog |
 | **Save & Delete** | Save a JSON backup of selected entities to `/config/` before deleting |
 
@@ -65,7 +67,7 @@ A collapsible section below the control bar. Entries here are saved to the integ
 - **Platform globs** — `imou_*`, `tuya_*`
 - **Entity ID globs** — `sensor.old_*`, `*_deprecated`, `sensor.*_temp`
 
-Press **💾 Save** to persist the current list. Use the **?** link for a full syntax reference.
+Entries are saved automatically when added or removed — no Save button needed. Use the **?** link for a full syntax reference.
 
 ### Save & Delete
 
@@ -93,6 +95,22 @@ Entities that are new since the last scan are highlighted with a yellow `new` ba
 ### Sortable columns
 
 Click any column header in the results table to sort by that field. Click again to reverse the order. The active sort direction is indicated by ↑ or ↓ next to the column name. Sortable columns: **Entity ID**, **Platform**, **Detection**, **Age**.
+
+### Detection breakdown
+
+After each scan, a compact bar appears below the stat cards showing the count per detection method:
+
+> *32 dead entry · 7 unavailable · 0 timestamp · 0 heuristic*
+
+Each count is colour-coded: dead entry in neutral, unavailable in amber, timestamp in green, heuristic in violet.
+
+### Detection filter
+
+A dropdown in the toolbar lets you filter the table to show only entities detected by a specific method: **Dead entry**, **Unavailable**, **Timestamp** or **Heuristic**. Combine it with the text filter for precise results.
+
+### Platform badge click
+
+Click any platform badge in the results table to instantly select all entities of that platform. Useful for quickly selecting a full group before deleting or ignoring.
 
 ---
 
