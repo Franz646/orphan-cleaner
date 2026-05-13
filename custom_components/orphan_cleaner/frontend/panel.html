@@ -485,8 +485,9 @@ function sortBy(field) {
 }
 
 function filteredOrphans() {
-  const q    = (document.getElementById('filter').value || '').toLowerCase();
-  const heur = document.getElementById('heur-on')?.checked;
+  const q      = (document.getElementById('filter').value || '').toLowerCase();
+  const heur   = document.getElementById('heur-on')?.checked;
+  const method = document.getElementById('method-filter')?.value || '';
   return allOrphans
     .filter(e => (heur || e.method !== 'heuristic') &&
                  (!method || e.method === method) &&
