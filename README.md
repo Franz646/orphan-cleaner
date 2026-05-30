@@ -9,7 +9,7 @@
 [![Maintained](https://img.shields.io/badge/maintained-yes-green)](https://github.com/Franz646/orphan-cleaner)
 [![Buy Me a Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=DJvC5DnVJf&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://www.buymeacoffee.com/DJvC5DnVJf)
 
-A custom integration that finds and deletes **orphan entities** — entities left in the registry after the integration that created them has been removed or failed — via a web panel in the sidebar and services callable from scripts and automations.
+A custom integration that finds and deletes **orphan entities** - entities left in the registry after the integration that created them has been removed or failed - via a web panel in the sidebar and services callable from scripts and automations.
 
 ---
 
