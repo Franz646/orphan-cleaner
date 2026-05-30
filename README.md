@@ -1,4 +1,4 @@
-# Orphan Entity Cleaner — Custom Integration for Home Assistant
+# Orphan Entity Cleaner - Custom Integration for Home Assistant
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue)](https://www.home-assistant.io/)
