@@ -575,7 +575,7 @@ async function doScan() {
   try {
     const minAge = document.getElementById('min-age')?.value || 24;
     const heur   = document.getElementById('heur-on')?.checked ? 1 : 0;
-    const r    = await fetch('/api/orphan_cleaner/scan?min_age='+minAge+'&heuristic='+heur);
+    const r    = await fetch('/api/orphan_cleaner/scan?min_age='+minAge+'&heuristic='+heur, {credentials:'same-origin'});
     if (!r.ok) throw new Error('HTTP '+r.status);
     const data = await r.json();
     if (data.error) throw new Error(data.error);
@@ -717,6 +717,7 @@ async function doSaveDelete() {
   try {
     const er = await fetch('/api/orphan_cleaner/export', {
       method: 'POST', headers: {'Content-Type':'application/json'},
+      credentials: 'same-origin',
       body: JSON.stringify({ entity_ids: ids, orphans: allOrphans })
     });
     if (!er.ok) throw new Error('Export HTTP '+er.status);
@@ -743,6 +744,7 @@ async function doDelete() {
   try {
     const r    = await fetch('/api/orphan_cleaner/delete', {
       method: 'POST', headers: {'Content-Type':'application/json'},
+      credentials: 'same-origin',
       body: JSON.stringify({entity_ids: ids})
     });
     if (!r.ok) throw new Error('HTTP '+r.status);
@@ -776,7 +778,7 @@ let savedIgnoreList = [];
 
 async function loadSavedIgnoreList() {
   try {
-    const r = await fetch('/api/orphan_cleaner/ignore_list');
+    const r = await fetch('/api/orphan_cleaner/ignore_list', {credentials:'same-origin'});
     if (!r.ok) return;
     const d = await r.json();
     savedIgnoreList = d.ignore_list || [];
@@ -796,6 +798,7 @@ async function persistIgnoreList() {
   try {
     await fetch('/api/orphan_cleaner/ignore_list', {
       method: 'POST', headers: {'Content-Type':'application/json'},
+      credentials: 'same-origin',
       body: JSON.stringify({ ignore_list: savedIgnoreList })
     });
   } catch(e) { /* silently fail */ }
