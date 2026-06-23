@@ -263,6 +263,12 @@ If you used **Save & Delete**, a backup file was written to `/config/orphan_clea
 
 ---
 
+## Security
+
+All API endpoints require Home Assistant authentication. The panel itself requires admin privileges to access from the sidebar (`require_admin`). Endpoints that delete entities or write files to the configuration directory (`/delete`, `/export`) additionally require an admin-level account, regardless of how they are called. Read-only endpoints (`/scan`, `/ignore_list` GET) require a valid authenticated session but not admin rights.
+
+---
+
 ## Warnings
 
 - **Always make a backup** before deleting entities in bulk. Use **Save & Delete** to automatically export a JSON record before each deletion.
