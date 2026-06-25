@@ -36,7 +36,7 @@ A custom integration that finds and deletes **orphan entities** - entities left 
 
 ## Web Panel
 
-After installation, the **Orphan Cleaner** icon appears in the HA sidebar. All settings are controlled directly from the panel — no configuration flow needed after the initial setup.
+After installation, the **Orphan Cleaner** icon appears in the HA sidebar. All settings are controlled directly from the panel - no configuration flow needed after the initial setup.
 
 ### Controls
 
@@ -50,7 +50,7 @@ After installation, the **Orphan Cleaner** icon appears in the HA sidebar. All s
 | **Dry run** | Simulate deletion without removing anything (see below) |
 | **Filter** | Filter visible results by entity_id or platform |
 | **Select all / Deselect** | Bulk checkbox controls |
-| **Column headers** | Click to sort by Entity ID, Platform, Detection or Age — click again to reverse |
+| **Column headers** | Click to sort by Entity ID, Platform, Detection or Age - click again to reverse |
 | **Platform badge** | Click on any platform badge to instantly select all entities of that platform |
 | **Detection filter** | Dropdown to show only dead entry, unavailable, timestamp or heuristic entities |
 | **Delete selected** | Delete selected entities with a confirmation dialog |
@@ -64,11 +64,11 @@ Type a platform name or glob pattern in the **Ignore** field in the control bar 
 
 A collapsible section below the control bar. Entries here are saved to the integration's config entry options and automatically loaded on every scan and page load. Supports:
 
-- **Platform names** — `tuya`, `shelly`, `imou_life`
-- **Platform globs** — `imou_*`, `tuya_*`
-- **Entity ID globs** — `sensor.old_*`, `*_deprecated`, `sensor.*_temp`
+- **Platform names** - `tuya`, `shelly`, `imou_life`
+- **Platform globs** - `imou_*`, `tuya_*`
+- **Entity ID globs** - `sensor.old_*`, `*_deprecated`, `sensor.*_temp`
 
-Entries are saved automatically when added or removed — no Save button needed. Use the **?** link for a full syntax reference.
+Entries are saved automatically when added or removed - no Save button needed. Use the **?** link for a full syntax reference.
 
 ### Save & Delete
 
@@ -81,7 +81,7 @@ Enable the **Dry run** checkbox in the toolbar before deleting. When active:
 - An amber warning banner appears to remind you that no changes will be made
 - **Delete selected** becomes **Simulate**
 - **Save & Delete** is hidden
-- Clicking **Simulate** highlights the selected entities with a `would delete` badge for 6 seconds and logs the result — nothing is actually removed
+- Clicking **Simulate** highlights the selected entities with a `would delete` badge for 6 seconds and logs the result - nothing is actually removed
 
 Dry run is also available as a parameter in the `orphan_cleaner.delete_orphans` service (see Services section).
 
@@ -117,21 +117,21 @@ Click any platform badge in the results table to instantly select all entities o
 
 ## Detection Methods
 
-### Method 1 — `orphaned_timestamp` (reliable)
+### Method 1 - `orphaned_timestamp` (reliable)
 
 Home Assistant sets this field in the registry when, after a full restart, an entity is not claimed by any integration. This is the official signal and is always active.
 
 **Min age (h)** filters out recently orphaned entities, useful if an integration is temporarily offline. Ages above 24 hours are displayed in days (e.g. `377d`) in the panel table.
 
-### Method 2 — Dead config entry
+### Method 2 - Dead config entry
 
 If an entity's `config_entry_id` points to a config entry that no longer exists or is in a `FAILED` / `NOT_LOADED` state, the entity is considered an orphan.
 
-### Method 3 — Unavailable state
+### Method 3 - Unavailable state
 
 Entities in `unavailable` state for longer than **Min age (h)** are flagged. Catches entities that HA marks with the yellow warning "no longer provided by the integration".
 
-### Method 4 — Heuristic (optional)
+### Method 4 - Heuristic (optional)
 
 Enabled by the **Heuristic** checkbox. Also flags entities with no `config_entry_id` and a platform not in the following exclusion list:
 
@@ -250,14 +250,14 @@ If you used **Save & Delete**, a backup file was written to `/config/orphan_clea
 
 ### What you can do
 
-- **Check if the entity was truly orphaned** — look at the `method` and `age_hours` fields. If `age_hours` is low, the integration may have been temporarily offline and the entity could reappear after a restart.
-- **Reinstall the integration** — if the platform (e.g. `tuya`, `shelly`, `zha`) is still active and the physical device is reachable, removing and re-adding the integration will recreate its entities automatically.
-- **Restore custom attributes manually** — if the entity reappears, you can reassign its area, icon, and aliases from the HA UI. The backup gives you the original `entity_id` to match it.
-- **Clean up the recorder** — if the entity had historical data and you want to remove it, use the `recorder.purge_entities` service with the `entity_id` from the backup.
+- **Check if the entity was truly orphaned** - look at the `method` and `age_hours` fields. If `age_hours` is low, the integration may have been temporarily offline and the entity could reappear after a restart.
+- **Reinstall the integration** - if the platform (e.g. `tuya`, `shelly`, `zha`) is still active and the physical device is reachable, removing and re-adding the integration will recreate its entities automatically.
+- **Restore custom attributes manually** - if the entity reappears, you can reassign its area, icon, and aliases from the HA UI. The backup gives you the original `entity_id` to match it.
+- **Clean up the recorder** - if the entity had historical data and you want to remove it, use the `recorder.purge_entities` service with the `entity_id` from the backup.
 
 ### What cannot be recovered
 
-- The entity registry entry itself — HA does not expose an API to re-insert entries manually.
+- The entity registry entry itself - HA does not expose an API to re-insert entries manually.
 - Historical recorder data is not deleted by this integration, but it will no longer be linked to an active entity.
 - If the underlying integration or device no longer exists, the entity cannot be recreated without it.
 
@@ -274,7 +274,7 @@ All API endpoints require Home Assistant authentication. The panel itself requir
 - **Always make a backup** before deleting entities in bulk. Use **Save & Delete** to automatically export a JSON record before each deletion.
 - Deleted entities are removed from the **registry**: historical data in the **recorder** remains but is no longer associated with an active entity. To clean the recorder as well, use the `recorder.purge_entities` service.
 - An entity with `orphaned_timestamp` may belong to an integration that is temporarily offline. Increase **Min age (h)** if you have unstable integrations.
-- Deletion is **irreversible**. Entities cannot be restored from the backup — the backup is a reference record only.
+- Deletion is **irreversible**. Entities cannot be restored from the backup - the backup is a reference record only.
 
 ---
 

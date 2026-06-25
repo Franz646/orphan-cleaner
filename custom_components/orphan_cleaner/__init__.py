@@ -1,5 +1,5 @@
 """
-Orphan Entity Cleaner — Custom Integration for Home Assistant.
+Orphan Entity Cleaner - Custom Integration for Home Assistant.
 """
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception:
         pass
 
-    # Use iframe panel pointing directly to panel.html — no JS cache issues
+    # Use iframe panel pointing directly to panel.html - no JS cache issues
     frontend.async_register_built_in_panel(
         hass,
         component_name="iframe",
