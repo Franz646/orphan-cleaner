@@ -1,6 +1,6 @@
-# Orphan Entity Cleaner - Custom Integration for Home Assistant
+# Orphan Entity Cleaner - Home Assistant Integration
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Franz646/orphan-cleaner/blob/main/LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/Franz646/orphan-cleaner)](https://github.com/Franz646/orphan-cleaner/releases)
@@ -20,11 +20,10 @@ A custom integration that finds and deletes **orphan entities** - entities left 
 [![Open HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Franz646&repository=orphan-cleaner&category=integration)
 [![Add Integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=orphan_cleaner)
 
-1. In HACS → **Integrations → ⋮ → Custom repositories**
-2. Add the URL of this repository, category **Integration** https://github.com/Franz646/orphan-cleaner
-3. Search for **Orphan Entity Cleaner** and install
-4. Restart Home Assistant
-5. **Settings → Devices & Services → Add Integration → Orphan Entity Cleaner**
+1. Open HACS in your Home Assistant instance
+2. Search for **Orphan Entity Cleaner** and install
+3. Restart Home Assistant
+4. **Settings → Devices & Services → Add Integration → Orphan Entity Cleaner**
 
 ### Manual installation
 
