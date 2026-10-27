@@ -196,16 +196,31 @@ def detect_orphans(
     return orphans
 
 
+def _all_devices(device_registry) -> list:
+    """All device entries (iterating the registry yields entries on recent HA, ids on older)."""
+    items = list(device_registry.devices)
+    if items and isinstance(items[0], str):
+        return [device_registry.async_get(did) for did in items]
+    return items
+
+
+def _device_entry_ids(device) -> list[str]:
+    """Config entry ids of a device (one on recent HA, a set on older)."""
+    if hasattr(device, "config_entry_id"):
+        return [device.config_entry_id] if device.config_entry_id else []
+    return list(device.config_entries)
+
+
 def detect_orphan_devices(hass: HomeAssistant) -> list[dict]:
     """Devices with no entities left and no existing config entry."""
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     used = {e.device_id for e in entity_registry.entities.values() if e.device_id}
     found = []
-    for device in device_registry.devices.values():
-        if device.id in used:
+    for device in _all_devices(device_registry):
+        if device is None or device.id in used:
             continue
-        if any(hass.config_entries.async_get_entry(eid) for eid in device.config_entries):
+        if any(hass.config_entries.async_get_entry(eid) for eid in _device_entry_ids(device)):
             continue
         found.append({
             "device_id": device.id,
