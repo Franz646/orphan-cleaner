@@ -2,7 +2,9 @@ scan:
   name: Scan orphan entities
   description: >
     Scans the Home Assistant registry and fires the
-    'orphan_cleaner_orphans_found' event with the list of orphan entities.
+    'orphan_cleaner_orphans_found' event with the candidates, each with a
+    category (safe, review, unavailable), the automations/scripts/scenes that
+    still use it, and the list of orphan devices.
     Useful in automations to detect and notify the presence of orphan entities.
   fields: {}
 
@@ -10,14 +12,15 @@ delete_orphans:
   name: Delete orphan entities
   description: >
     Deletes orphan entities from the Home Assistant registry.
-    If entity_ids is omitted, all orphans detected with the
-    current integration settings will be deleted.
+    If entity_ids is omitted, only the candidates in the "safe" category are
+    deleted (entities no longer provided by anything). Entities in the
+    "review" and "unavailable" categories are deleted only if listed explicitly.
   fields:
     entity_ids:
       name: Entity IDs
       description: >
-        List of entity_ids to delete. If omitted, deletes all
-        automatically detected orphan entities.
+        List of entity_ids to delete. If omitted, deletes only the
+        "safe" orphan entities.
       required: false
       example: "['sensor.old_device', 'binary_sensor.ghost']"
       selector:
@@ -28,6 +31,30 @@ delete_orphans:
       description: >
         If true, logs the entities that would be deleted
         without making any changes. Useful for verification before proceeding.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+delete_orphan_devices:
+  name: Delete orphan devices
+  description: >
+    Deletes devices that have no entities left and whose integration no
+    longer exists. If device_ids is omitted, all such devices are deleted.
+  fields:
+    device_ids:
+      name: Device IDs
+      description: >
+        List of device ids to delete. Only devices that are still orphan
+        when the service runs are deleted.
+      required: false
+      selector:
+        device:
+          multiple: true
+    dry_run:
+      name: Dry run
+      description: >
+        If true, logs the devices that would be deleted without making any changes.
       required: false
       default: false
       selector:

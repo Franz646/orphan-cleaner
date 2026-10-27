@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+import time
 import pathlib
 
 from homeassistant.config_entries import ConfigEntry
@@ -23,6 +24,8 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})
+    # Start-up time: restored entities are not reported during the grace period
+    hass.data[DOMAIN].setdefault("started_at", time.monotonic())
     return True
 
 

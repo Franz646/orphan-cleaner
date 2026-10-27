@@ -30,13 +30,22 @@ MANUAL_PLATFORMS = {
     "tag",
 }
 
+# Seconds after start-up during which restored entities are not reported
+# (integrations may still be loading)
+STARTUP_GRACE_SECONDS = 600
+
+# Backups written before deleting, inside the config directory
+BACKUP_DIR = "orphan_cleaner_backups"
+
 # Nomi servizi
-SERVICE_SCAN           = "scan"
-SERVICE_DELETE_ORPHANS = "delete_orphans"
+SERVICE_SCAN                  = "scan"
+SERVICE_DELETE_ORPHANS        = "delete_orphans"
+SERVICE_DELETE_ORPHAN_DEVICES = "delete_orphan_devices"
 
 # Campi servizi
 FIELD_ENTITY_IDS = "entity_ids"
 FIELD_DRY_RUN    = "dry_run"
+FIELD_DEVICE_IDS = "device_ids"
 
 # Nome evento HA sparato dopo scansione
 EVENT_ORPHANS_FOUND = f"{DOMAIN}_orphans_found"
@@ -47,4 +56,4 @@ PANEL_NAME = "Orphan Cleaner"
 PANEL_ICON = "mdi:broom"
 
 # Versione corrente (usata per cache-busting)
-VERSION = "4.1.2"
+VERSION = "4.2.0"

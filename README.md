@@ -42,18 +42,19 @@ After installation, the **Orphan Cleaner** icon appears in the HA sidebar. All s
 | Control | Description |
 |---|---|
 | **Scan** | Scans the registry and populates the table |
-| **Heuristic** | Enables detection method 4 (see below) |
-| **Min age (h)** | Minimum age in hours for an entity to be flagged |
+| **Heuristic** | Enables the heuristic detection (see below) |
+| **Min age (h)** | How long an entity must have been unavailable before it is listed (only unavailable entities) |
 | **Ignore** | Add platforms or globs to exclude from the current session |
 | **Default ignore list** | Persistent ignore list, pre-loaded on every scan (see below) |
 | **Dry run** | Simulate deletion without removing anything (see below) |
 | **Filter** | Filter visible results by entity_id or platform |
-| **Select all / Deselect** | Bulk checkbox controls |
-| **Column headers** | Click to sort by Entity ID, Platform, Detection or Age - click again to reverse |
+| **Select safe / Deselect** | Selects only the entities that are safe to delete and not used anywhere |
+| **Column headers** | Click to sort by Entity ID, Platform, Category or Age - click again to reverse |
 | **Platform badge** | Click on any platform badge to instantly select all entities of that platform |
-| **Detection filter** | Dropdown to show only dead entry, unavailable, timestamp or heuristic entities |
+| **Category filter** | Dropdown to show only safe, to review or only unavailable entities |
 | **Delete selected** | Delete selected entities with a confirmation dialog |
-| **Save & Delete** | Save a JSON backup of selected entities to `/config/` before deleting |
+| **Save & Delete** | Save a JSON backup of selected entities to `/config/orphan_cleaner_backups/` before deleting |
+| **Remove orphan devices** | Shown when devices with no entities and no integration are found |
 
 ### Ignore (session)
 
@@ -71,7 +72,7 @@ Entries are saved automatically when added or removed - no Save button needed. U
 
 ### Save & Delete
 
-**Save & Delete** exports a timestamped JSON backup of the selected entities to `/config/orphan_cleaner_backup_<timestamp>.json` before proceeding with deletion. If the backup fails, deletion is aborted. The backup contains entity metadata (entity_id, platform, detection method, age, disabled state) and can be used as a reference in case of accidental deletion.
+**Save & Delete** exports a timestamped JSON backup of the selected entities to `/config/orphan_cleaner_backups/orphan_cleaner_backup_<timestamp>.json` before proceeding with deletion. If the backup fails, deletion is aborted. The backup contains entity metadata (entity_id, platform, detection method, age, disabled state) and can be used as a reference in case of accidental deletion.
 
 ### Dry run
 
@@ -94,19 +95,21 @@ Entities that are new since the last scan are highlighted with a yellow `new` ba
 
 ### Sortable columns
 
-Click any column header in the results table to sort by that field. Click again to reverse the order. The active sort direction is indicated by ↑ or ↓ next to the column name. Sortable columns: **Entity ID**, **Platform**, **Detection**, **Age**.
+Click any column header in the results table to sort by that field. Click again to reverse the order. The active sort direction is indicated by ↑ or ↓ next to the column name. Sortable columns: **Entity ID**, **Platform**, **Category**, **Age**.
 
-### Detection breakdown
+### Category breakdown
 
-After each scan, a compact bar appears below the stat cards showing the count per detection method:
+After each scan, a compact bar appears below the stat cards:
 
-> *32 dead entry · 7 unavailable · 0 timestamp · 0 heuristic*
+> *59 safe · 36 to review · 4 only unavailable · 2 still used*
 
-Each count is colour-coded: dead entry in neutral, unavailable in amber, timestamp in green, heuristic in violet.
+### Category filter
 
-### Detection filter
+A dropdown in the toolbar lets you show only one category: **Safe to delete**, **To review** or **Only unavailable**. Combine it with the text filter for precise results.
 
-A dropdown in the toolbar lets you filter the table to show only entities detected by a specific method: **Dead entry**, **Unavailable**, **Timestamp** or **Heuristic**. Combine it with the text filter for precise results.
+### Still used
+
+Entities still referenced by automations, scripts or scenes get a red **used by N** badge (hover it to see where). They are never selected by **Select safe**, and the confirmation dialog warns you if you selected them manually.
 
 ### Platform badge click
 
@@ -114,27 +117,29 @@ Click any platform badge in the results table to instantly select all entities o
 
 ---
 
-## Detection Methods
+## Detection and categories
 
-### Method 1 - `orphaned_timestamp` (reliable)
+Every candidate gets a **category**, which tells how safe it is to delete it, and a short **reason**.
 
-Home Assistant sets this field in the registry when, after a full restart, an entity is not claimed by any integration. This is the official signal and is always active.
+| Category | Meaning | Included in "delete all"? |
+|---|---|---|
+| **Safe** | Nothing provides the entity any more: its integration was removed, or Home Assistant restored it from the registry (state attribute `restored: true`, the yellow "no longer provided" warning) while its integration is running. | Yes |
+| **To review** | Its integration is disabled, failing or retrying setup, or it was found by the heuristic. It may come back on its own. | No |
+| **Only unavailable** | Its integration still provides it, but it has been `unavailable` for at least **Min age (h)** (device off or unreachable). Deleting it only lasts until the next reload. | No |
 
-**Min age (h)** filters out recently orphaned entities, useful if an integration is temporarily offline. Ages above 24 hours are displayed in days (e.g. `377d`) in the panel table.
+Detection steps, in order:
 
-### Method 2 - Dead config entry
+1. **Removed integration** - the entity's config entry no longer exists → *safe*.
+2. **Integration not running** - the config entry is disabled, not loaded, in setup error, retrying setup or in migration error → *to review*.
+3. **No longer provided** - the state has `restored: true` → *safe*. Skipped during the first 10 minutes after Home Assistant starts, while integrations are still loading (the panel shows a notice).
+4. **Unavailable** - unavailable for at least **Min age (h)**, measured from the state's last change (not from when the entity was created) → *only unavailable*.
+5. **Heuristic** (optional, **Heuristic** checkbox) - no config entry and a platform not in the exclusion list → *to review*.
 
-If an entity's `config_entry_id` points to a config entry that no longer exists or is in a `FAILED` / `NOT_LOADED` state, the entity is considered an orphan.
+Heuristic exclusion list: `automation`, `counter`, `group`, `input_boolean`, `input_button`, `input_datetime`, `input_number`, `input_select`, `input_text`, `person`, `persistent_notification`, `scene`, `schedule`, `script`, `tag`, `template`, `timer`, `zone`
 
-### Method 3 - Unavailable state
+### Orphan devices
 
-Entities in `unavailable` state for longer than **Min age (h)** are flagged. Catches entities that HA marks with the yellow warning "no longer provided by the integration".
-
-### Method 4 - Heuristic (optional)
-
-Enabled by the **Heuristic** checkbox. Also flags entities with no `config_entry_id` and a platform not in the following exclusion list:
-
-`automation`, `counter`, `group`, `input_boolean`, `input_button`, `input_datetime`, `input_number`, `input_select`, `input_text`, `person`, `persistent_notification`, `scene`, `schedule`, `script`, `tag`, `template`, `timer`, `zone`
+Devices that have no entities left and whose integration no longer exists are listed separately and can be removed with one click, or with the `orphan_cleaner.delete_orphan_devices` service.
 
 ---
 
@@ -151,12 +156,20 @@ action: orphan_cleaner.scan
 Event payload:
 ```yaml
 count: 5
+count_safe: 3
+startup_grace: false
 orphans:
   - entity_id: sensor.old_shelly
     platform: shelly
-    method: timestamp
-    age_hours: 72.3
+    method: restored
+    category: safe
+    reason: no longer provided by its integration
+    age_hours: null
     disabled_by: null
+    used_in: []
+orphan_devices:
+  - device_id: 0123abcd...
+    name: Old plug
 ```
 
 Example automation:
@@ -172,20 +185,20 @@ automation:
     service: notify.mobile_app
     data:
       title: "Orphan entities detected"
-      message: "Found {{ trigger.event.data.count }} orphan entities."
+      message: "Found {{ trigger.event.data.count_safe }} orphan entities safe to delete."
 ```
 
 ### `orphan_cleaner.delete_orphans`
 
-Deletes the specified entities, or all detected orphans if none are specified.
+Deletes the specified entities or, if none are specified, only the candidates in the **safe** category.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `entity_ids` | list | No | Entities to delete. If omitted → all orphans |
+| `entity_ids` | list | No | Entities to delete. If omitted → only the *safe* orphans |
 | `dry_run` | bool | No | Log only, without making changes (default: `false`) |
 
 ```yaml
-# Delete all orphans
+# Delete all safe orphans
 action: orphan_cleaner.delete_orphans
 
 # Dry run
@@ -199,6 +212,16 @@ data:
   entity_ids:
     - sensor.old_device
     - binary_sensor.ghost_sensor
+```
+
+### `orphan_cleaner.delete_orphan_devices`
+
+Removes devices with no entities left whose integration no longer exists. Without `device_ids`, removes all of them. Supports `dry_run`.
+
+```yaml
+action: orphan_cleaner.delete_orphan_devices
+data:
+  dry_run: true
 ```
 
 ---
@@ -227,7 +250,7 @@ custom_components/orphan_cleaner/
 
 ## Recovering from accidental deletion
 
-If you used **Save & Delete**, a backup file was written to `/config/orphan_cleaner_backup_<timestamp>.json` before the deletion. This file contains the metadata of all deleted entities.
+If you used **Save & Delete**, a backup file was written to `/config/orphan_cleaner_backups/orphan_cleaner_backup_<timestamp>.json` before the deletion. This file contains the metadata of all deleted entities.
 
 ### What the backup contains
 
@@ -272,7 +295,7 @@ All API endpoints require Home Assistant authentication. The panel itself requir
 
 - **Always make a backup** before deleting entities in bulk. Use **Save & Delete** to automatically export a JSON record before each deletion.
 - Deleted entities are removed from the **registry**: historical data in the **recorder** remains but is no longer associated with an active entity. To clean the recorder as well, use the `recorder.purge_entities` service.
-- An entity with `orphaned_timestamp` may belong to an integration that is temporarily offline. Increase **Min age (h)** if you have unstable integrations.
+- Entities in the **to review** and **only unavailable** categories may come back after a reload or when their integration recovers: deleting them only loses their customisations (name, area, icon).
 - Deletion is **irreversible**. Entities cannot be restored from the backup - the backup is a reference record only.
 
 ---

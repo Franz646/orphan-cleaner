@@ -17,8 +17,14 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS
-from .orphan_detector import detect_orphans, async_delete_entities
+from .const import DOMAIN, CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS, BACKUP_DIR
+from .orphan_detector import (
+    detect_orphans,
+    detect_orphan_devices,
+    async_delete_entities,
+    async_delete_devices,
+    startup_grace_active,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,6 +144,8 @@ class OrphanCleanerScanView(HomeAssistantView):
                     "min_age":          min_age,
                     "aggressive":       aggressive,
                     "ignore_platforms": list(ignore_platforms),
+                    "orphan_devices":   detect_orphan_devices(hass),
+                    "startup_grace":    startup_grace_active(hass),
                     "error":            None,
                 }),
             )
@@ -190,6 +198,41 @@ class OrphanCleanerDeleteView(HomeAssistantView):
                                 text=json.dumps({"error": "Internal server error"}))
 
 
+class OrphanCleanerDeleteDevicesView(HomeAssistantView):
+    """POST /api/orphan_cleaner/delete_devices - removes orphan devices. Requires admin."""
+
+    url           = "/api/orphan_cleaner/delete_devices"
+    name          = "api:orphan_cleaner:delete_devices"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        hass: HomeAssistant = request.app["hass"]
+        user = request.get("hass_user")
+        if user is None or not user.is_admin:
+            return web.Response(status=403, content_type="application/json",
+                                text='{"error":"Admin privileges required"}')
+        try:
+            body = await request.json()
+        except Exception:
+            return web.Response(status=400, content_type="application/json",
+                                text='{"error":"Invalid JSON"}')
+        device_ids = body.get("device_ids", [])
+        if not device_ids:
+            return web.Response(status=400, content_type="application/json",
+                                text='{"error":"device_ids missing or empty"}')
+        try:
+            deleted, failed = await async_delete_devices(hass, device_ids)
+            return web.Response(
+                content_type="application/json",
+                text=json.dumps({"deleted": deleted, "failed": failed,
+                                 "deleted_count": len(deleted), "failed_count": len(failed)}),
+            )
+        except Exception:
+            _LOGGER.exception("Errore delete_devices API")
+            return web.Response(status=500, content_type="application/json",
+                                text=json.dumps({"error": "Internal server error"}))
+
+
 class OrphanCleanerExportView(HomeAssistantView):
     """POST /api/orphan_cleaner/export - salva un backup JSON.
     Richiede admin perché scrive un file nella directory di configurazione."""
@@ -218,19 +261,22 @@ class OrphanCleanerExportView(HomeAssistantView):
 
         ts       = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"orphan_cleaner_backup_{ts}.json"
-        path     = pathlib.Path(hass.config.config_dir) / filename
+        folder   = pathlib.Path(hass.config.config_dir) / BACKUP_DIR
+        path     = folder / filename
         payload  = {
             "exported_at":  datetime.datetime.now().isoformat(),
             "entity_count": len(entity_ids),
             "entities":     [o for o in orphans if o.get("entity_id") in entity_ids],
         }
+        def _write() -> None:
+            folder.mkdir(exist_ok=True)
+            path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), "utf-8")
+
         try:
-            await hass.async_add_executor_job(
-                path.write_text, json.dumps(payload, indent=2, ensure_ascii=False)
-            )
+            await hass.async_add_executor_job(_write)
             return web.Response(
                 content_type="application/json",
-                text=json.dumps({"ok": True, "filename": filename, "path": str(path)}),
+                text=json.dumps({"ok": True, "filename": f"{BACKUP_DIR}/{filename}", "path": str(path)}),
             )
         except Exception:
             _LOGGER.exception("Errore export API")
@@ -292,6 +338,7 @@ def async_register_views(hass: HomeAssistant) -> None:
     hass.http.register_view(OrphanCleanerIconView())
     hass.http.register_view(OrphanCleanerScanView())
     hass.http.register_view(OrphanCleanerDeleteView())
+    hass.http.register_view(OrphanCleanerDeleteDevicesView())
     hass.http.register_view(OrphanCleanerExportView())
     hass.http.register_view(OrphanCleanerIgnoreListView())
     _LOGGER.debug("Route Orphan Cleaner registrate")

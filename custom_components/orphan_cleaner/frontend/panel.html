@@ -127,6 +127,14 @@
   .badge { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px; white-space: nowrap; }
   .badge-ts        { background: var(--green-lt); color: var(--green-tx); }
   .badge-heuristic { background: var(--amber-lt); color: var(--amber-tx); }
+  .badge-cat-safe        { background: var(--green-lt); color: var(--green-tx); }
+  .badge-cat-review      { background: var(--amber-lt); color: var(--amber-tx); }
+  .badge-cat-unavailable { background: var(--blue-lt);  color: var(--blue-tx); }
+  .badge-used  { background:#7f1d1d; color:#fecaca; margin-left:4px; cursor:help; }
+  .reason      { display:block; color:var(--text3); font-size:11px; margin-top:2px; }
+  .grace-banner, .devices-banner { display:none; margin:0 0 10px; padding:8px 12px; border-radius:var(--radius-sm); font-size:12px; }
+  .grace-banner.show   { display:block; background:#78350f; color:#fde68a; }
+  .devices-banner.show { display:flex; gap:10px; align-items:center; background:var(--surface2); color:var(--text2); }
   .badge-disabled  { background: var(--blue-lt);  color: var(--blue-tx); margin-left: 4px; }
   .age-text { font-size: 12px; color: var(--text2); }
   input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: var(--green); }
@@ -198,7 +206,7 @@
   .breakdown span { white-space:nowrap; }
   .bd-dead { color:var(--text2); }
   .bd-unav { color:#38bdf8; }
-  .bd-ts   { color:#e879f9; }
+  .bd-ts   { color:#4ade80; }
   .bd-heur { color:#d4a017; }
   .diff-banner { display:none; align-items:center; gap:12px; flex-wrap:wrap;
     background:var(--surface2); border-radius:var(--radius-sm); padding:7px 14px;
@@ -263,19 +271,28 @@
   <div class="stat-row">
     <div class="stat">          <div class="s-label">Total entities</div>  <div class="s-val" id="s-total">-</div></div>
     <div class="stat">           <div class="s-label">Orphans found</div>   <div class="s-val" id="s-orphan">-</div></div>
-    <div class="stat">           <div class="s-label">Heuristic</div>       <div class="s-val" id="s-heur">-</div></div>
+    <div class="stat">           <div class="s-label">Safe to delete</div>  <div class="s-val" id="s-heur">-</div></div>
     <div class="stat">           <div class="s-label">Selected</div>        <div class="s-val" id="s-sel">-</div></div>
   </div>
 
   <!-- Breakdown by detection method -->
   <div class="breakdown" id="breakdown">
-    <span class="bd-dead" id="bd-dead">0 dead entry</span>
+    <span class="bd-ts"   id="bd-ts">0 safe</span>
     <span style="color:var(--text3)">·</span>
-    <span class="bd-unav" id="bd-unav">0 unavailable</span>
+    <span class="bd-heur" id="bd-heur">0 to review</span>
     <span style="color:var(--text3)">·</span>
-    <span class="bd-ts"   id="bd-ts">0 timestamp</span>
+    <span class="bd-unav" id="bd-unav">0 only unavailable</span>
     <span style="color:var(--text3)">·</span>
-    <span class="bd-heur" id="bd-heur">0 heuristic</span>
+    <span class="bd-dead" id="bd-dead">0 still used</span>
+  </div>
+
+  <div class="grace-banner" id="grace-banner">
+    ⏳ Home Assistant started less than 10 minutes ago: integrations may still be loading, so entities
+    "no longer provided" are not reported yet. Scan again in a few minutes for a complete result.
+  </div>
+  <div class="devices-banner" id="devices-banner">
+    <span id="devices-txt"></span>
+    <button class="btn-danger" id="btn-del-dev" onclick="confirmDeleteDevices()">Remove orphan devices</button>
   </div>
 
   <!-- Controls -->
@@ -322,15 +339,14 @@
   <!-- Toolbar -->
   <div class="toolbar">
     <button class="btn-primary" id="btn-scan" onclick="doScan()">Scan</button>
-    <button id="btn-selall" onclick="selAll()"   disabled>Select all</button>
+    <button id="btn-selall" onclick="selAll()"   disabled title="Selects only the entities that are safe to delete">Select safe</button>
     <button id="btn-desel"  onclick="deselAll()" disabled>Deselect</button>
     <select id="method-filter" onchange="applyFilter()" disabled
             style="background:var(--surface2);border:.5px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:13px;padding:6px 8px;cursor:pointer;">
-      <option value="">All methods</option>
-      <option value="dead_entry">Dead entry</option>
-      <option value="unavailable">Unavailable</option>
-      <option value="timestamp">Timestamp</option>
-      <option value="heuristic">Heuristic</option>
+      <option value="">All categories</option>
+      <option value="safe">Safe to delete</option>
+      <option value="review">To review</option>
+      <option value="unavailable">Only unavailable</option>
     </select>
     <input  class="search" type="text" placeholder="Filter by entity_id or platform…"
             id="filter" oninput="applyFilter()" disabled>
@@ -377,7 +393,11 @@
     </div>
     <div class="service-row">
       <span class="svc-name">orphan_cleaner.delete_orphans</span>
-      <span class="svc-desc">Deletes entities specified in <code>entity_ids</code>, or all orphans if omitted. Supports <code>dry_run: true</code>.</span>
+      <span class="svc-desc">Deletes entities specified in <code>entity_ids</code>, or only the <strong>safe</strong> ones if omitted. Supports <code>dry_run: true</code>.</span>
+    </div>
+    <div class="service-row">
+      <span class="svc-name">orphan_cleaner.delete_orphan_devices</span>
+      <span class="svc-desc">Removes devices with no entities left whose integration no longer exists. Supports <code>dry_run: true</code>.</span>
     </div>
   </div>
 
@@ -452,10 +472,10 @@ function updateBreakdown() {
   const active = filteredOrphans().filter(e => !e._ignored);
   if (!active.length) { document.getElementById('breakdown').classList.remove('show'); return; }
   document.getElementById('breakdown').classList.add('show');
-  document.getElementById('bd-dead').textContent = active.filter(e=>e.method==='dead_entry').length  + ' dead entry';
-  document.getElementById('bd-unav').textContent = active.filter(e=>e.method==='unavailable').length + ' unavailable';
-  document.getElementById('bd-ts').textContent   = active.filter(e=>e.method==='timestamp').length   + ' timestamp';
-  document.getElementById('bd-heur').textContent = active.filter(e=>e.method==='heuristic').length   + ' heuristic';
+  document.getElementById('bd-ts').textContent   = active.filter(e=>e.category==='safe').length        + ' safe';
+  document.getElementById('bd-heur').textContent = active.filter(e=>e.category==='review').length      + ' to review';
+  document.getElementById('bd-unav').textContent = active.filter(e=>e.category==='unavailable').length + ' only unavailable';
+  document.getElementById('bd-dead').textContent = active.filter(e=>(e.used_in||[]).length).length    + ' still used';
 }
 
 function applyIgnore() {
@@ -517,12 +537,15 @@ function sortBy(field) {
   document.querySelectorAll('thead th.sortable').forEach(th => {
     th.classList.remove('sort-asc', 'sort-desc');
   });
-  const idx = ['entity_id','platform','method','age_hours'].indexOf(field);
+  const idx = ['entity_id','platform','category','age_hours'].indexOf(field);
   const ths = document.querySelectorAll('thead th.sortable');
   if (ths[idx]) ths[idx].classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
   renderTable(filteredOrphans());
 }
 
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function _fnmatch(str, pattern) {
   // Converte pattern glob (*, ?) in regex
   const re = '^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&')
@@ -537,7 +560,7 @@ function filteredOrphans() {
   const method = document.getElementById('method-filter')?.value || '';
   return allOrphans
     .filter(e => (heur || e.method !== 'heuristic') &&
-                 (!method || e.method === method) &&
+                 (!method || e.category === method) &&
                  (!q || e.entity_id.includes(q) || e.platform.includes(q)))
     .map(e => {
       const plat = (e.platform || '').trim().toLowerCase();
@@ -564,7 +587,7 @@ function filteredOrphans() {
 function activeOrphans() {
   return filteredOrphans().filter(e => !e._ignored);
 }
-function selAll()   { activeOrphans().forEach(e => selected.add(e.entity_id)); renderTable(filteredOrphans()); updateSelCount(); }
+function selAll()   { activeOrphans().filter(e => e.category === 'safe' && !(e.used_in||[]).length).forEach(e => selected.add(e.entity_id)); renderTable(filteredOrphans()); updateSelCount(); }
 function deselAll() { selected.clear(); renderTable(filteredOrphans()); updateSelCount(); }
 function toggleRow(id, chk) { chk ? selected.add(id) : selected.delete(id); updateSelCount(); }
 function applyFilter() {
@@ -597,18 +620,16 @@ function renderTable(items) {
       </tr>`;
     }
     const chk   = selected.has(e.entity_id) ? 'checked' : '';
-    const badge = e.method === 'timestamp'
-      ? '<span class="badge badge-ts">orphaned_timestamp</span>'
-      : e.method === 'dead_entry'
-      ? '<span class="badge badge-dead">dead entry</span>'
-      : e.method === 'unavailable'
-      ? '<span class="badge badge-unavail">unavailable</span>'
-      : '<span class="badge badge-heuristic">heuristic</span>';
+    const catLabel = {safe:'safe', review:'review', unavailable:'only unavailable'}[e.category] || e.category;
+    const badge = '<span class="badge badge-cat-'+esc(e.category)+'">'+esc(catLabel)+'</span>'
+      + '<span class="reason">'+esc(e.method)+' - '+esc(e.reason)+'</span>';
+    const used  = (e.used_in||[]).length
+      ? '<span class="badge badge-used" title="Still used by: '+esc(e.used_in.join(', '))+'">used by '+e.used_in.length+'</span>' : '';
     const dis   = e.disabled_by ? '<span class="badge badge-disabled">disabled</span>' : '';
     const age   = e.age_hours != null ? (e.age_hours >= 24 ? Math.round(e.age_hours/24)+'d' : e.age_hours+'h') : '-';
     return `<tr>
       <td class="td-chk"><input type="checkbox" ${chk} onchange="toggleRow('${e.entity_id}',this.checked)"></td>
-      <td><span class="eid">${e.entity_id}</span>${dis}</td>
+      <td><span class="eid">${esc(e.entity_id)}</span>${dis}${used}</td>
       <td><span class="platform-badge" onclick="selectByPlatform('${e.platform}')" style="cursor:pointer;" title="Select all ${e.platform} entities">${e.platform}</span></td>
       <td class="td-method">${badge}</td>
       <td class="td-age"><span class="age-text">${age}</span></td>
@@ -619,7 +640,7 @@ function renderTable(items) {
       <th class="th-chk"><input type="checkbox" onchange="this.checked?selAll():deselAll()"></th>
       <th class="sortable" onclick="sortBy('entity_id')">Entity ID</th>
       <th class="sortable" onclick="sortBy('platform')">Platform</th>
-      <th class="th-method sortable" onclick="sortBy('method')">Detection</th>
+      <th class="th-method sortable" onclick="sortBy('category')">Category</th>
       <th class="th-age sortable" onclick="sortBy('age_hours')">Age</th>
     </tr></thead>
     <tbody>${rows}</tbody></table>`;
@@ -643,13 +664,19 @@ async function doScan() {
     if (data.error) throw new Error(data.error);
     previousOrphans = allOrphans.slice();   // snapshot prima di aggiornare
     allOrphans = data.orphans || [];
-    const ts_n = allOrphans.filter(o => o.method === 'timestamp').length;
-    const he_n = allOrphans.filter(o => o.method === 'heuristic').length;
+    const ts_n = allOrphans.filter(o => o.category === 'safe').length;
+    const he_n = allOrphans.filter(o => o.category === 'review').length;
     document.getElementById('s-total').textContent  = data.total;
-    document.getElementById('s-heur').textContent   = he_n;
+    document.getElementById('s-heur').textContent   = ts_n;
+    document.getElementById('grace-banner').classList.toggle('show', !!data.startup_grace);
+    orphanDevices = data.orphan_devices || [];
+    document.getElementById('devices-txt').textContent =
+      orphanDevices.length+' orphan device(s) with no entities and no integration: '
+      + orphanDevices.slice(0,5).map(d => d.name).join(', ') + (orphanDevices.length > 5 ? '…' : '');
+    document.getElementById('devices-banner').classList.toggle('show', orphanDevices.length > 0);
     // Applica colori dopo la prima scan
     document.getElementById('s-orphan').closest('.stat').className = 'stat s-danger';
-    document.getElementById('s-heur').closest('.stat').className   = 'stat s-warn';
+    document.getElementById('s-heur').closest('.stat').className   = 'stat s-ok';
     document.getElementById('s-sel').closest('.stat').className    = 'stat s-ok';
     document.getElementById('filter').disabled         = false;
     document.getElementById('method-filter').disabled  = false;
@@ -657,7 +684,8 @@ async function doScan() {
     document.getElementById('btn-desel').disabled      = false;
     applyIgnore();
     showDiff();
-    addLog('Scan complete: '+data.total+' total, '+allOrphans.length+' orphans ('+ts_n+' by timestamp, '+he_n+' heuristic).','ok');
+    addLog('Scan complete: '+data.total+' total, '+allOrphans.length+' candidates ('+ts_n+' safe, '+he_n+' to review).','ok');
+    if (data.startup_grace) addLog('⏳ Start-up grace period: entities no longer provided are not reported yet.','warn');
     setStatus('Last scan: '+new Date().toLocaleTimeString('en-GB'),'ok');
   } catch(err) {
     addLog('Error: '+err.message,'err');
@@ -672,9 +700,46 @@ function confirmDelete() {
   if (isDryRun()) { doDryRun(); return; }
   document.getElementById('modal-msg').innerHTML =
     'You are about to delete <strong>'+selected.size+' entities</strong> from the Home Assistant registry.<br>'
+    + selectionWarnings()
     +'This operation is <strong>irreversible</strong>. Continue?';
   document.getElementById('overlay').classList.add('show');
 }
+function selectionWarnings() {
+  const sel = allOrphans.filter(e => selected.has(e.entity_id));
+  const notSafe = sel.filter(e => e.category !== 'safe').length;
+  const used    = sel.filter(e => (e.used_in||[]).length).length;
+  let w = '';
+  if (notSafe) w += '⚠ <strong>'+notSafe+'</strong> of them are not in the "safe" category: they may come back after a reload or when their integration recovers.<br>';
+  if (used)    w += '⚠ <strong>'+used+'</strong> of them are still used by automations, scripts or scenes.<br>';
+  return w;
+}
+
+let orphanDevices = [];
+function confirmDeleteDevices() {
+  if (!orphanDevices.length) return;
+  document.getElementById('modal-msg').innerHTML =
+    'You are about to remove <strong>'+orphanDevices.length+' orphan devices</strong> (no entities, integration removed).<br>'
+    +'This operation is <strong>irreversible</strong>. Continue?';
+  document.getElementById('btn-modal-del').onclick = doDeleteDevices;
+  document.getElementById('overlay').classList.add('show');
+}
+async function doDeleteDevices() {
+  closeModal();
+  document.getElementById('btn-modal-del').onclick = doDelete;
+  try {
+    const r = await authedFetch('/api/orphan_cleaner/delete_devices', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({device_ids: orphanDevices.map(d => d.device_id)})
+    });
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const data = await r.json();
+    addLog('Orphan devices removed: '+data.deleted_count+', failed: '+data.failed_count, data.failed_count ? 'warn' : 'ok');
+    await doScan();
+  } catch(err) {
+    addLog('Error: '+err.message,'err');
+  }
+}
+
 function onDryRunToggle() {
   const dry = document.getElementById('dry-run-toggle').checked;
   document.getElementById('dry-banner').classList.toggle('show', dry);
@@ -760,7 +825,7 @@ function closeModal() {
 function confirmSaveDelete() {
   if (!selected.size) return;
   document.getElementById('modal-msg').innerHTML =
-    'You are about to <strong>save a backup</strong> of '+selected.size+' entities to <code>/config/</code> and then <strong>delete</strong> them from the registry.<br>'+
+    'You are about to <strong>save a backup</strong> of '+selected.size+' entities to <code>/config/orphan_cleaner_backups/</code> and then <strong>delete</strong> them from the registry.<br>'+ selectionWarnings() +
     'This operation is <strong>irreversible</strong>. Continue?';
   // Temporaneamente cambia il pulsante Delete del modal per usare doSaveDelete
   document.getElementById('btn-modal-del').onclick = doSaveDelete;
@@ -815,7 +880,7 @@ async function doDelete() {
       addLog('✓ Deleted: '+id,'ok');
     });
     (data.failed||[]).forEach(id => addLog('✗ Failed: '+id,'err'));
-    document.getElementById('s-heur').textContent = allOrphans.filter(o=>o.method==='heuristic').length;
+    document.getElementById('s-heur').textContent = allOrphans.filter(o=>o.category==='safe').length;
     applyIgnore();
     updateSelCount();
     addLog('Done: '+data.deleted_count+' deleted, '+data.failed_count+' failed.',
