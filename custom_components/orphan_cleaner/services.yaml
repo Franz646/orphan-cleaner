@@ -41,12 +41,13 @@ delete_orphan_devices:
   description: >
     Deletes devices that have no entities left and whose integration no
     longer exists. If device_ids is omitted, all such devices are deleted.
+    With force, the listed devices are removed even if they are not orphans.
   fields:
     device_ids:
       name: Device IDs
       description: >
         List of device ids to delete. Only devices that are still orphan
-        when the service runs are deleted.
+        when the service runs are deleted, unless force is set.
       required: false
       selector:
         device:
@@ -55,6 +56,16 @@ delete_orphan_devices:
       name: Dry run
       description: >
         If true, logs the devices that would be deleted without making any changes.
+      required: false
+      default: false
+      selector:
+        boolean:
+    force:
+      name: Force
+      description: >
+        If true, removes the listed devices from the device registry even if
+        they still have entities or a config entry (their entities are removed
+        too). Requires device_ids. Use for stale devices the scan does not detect.
       required: false
       default: false
       selector:

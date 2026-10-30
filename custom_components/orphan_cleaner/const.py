@@ -46,6 +46,7 @@ SERVICE_DELETE_ORPHAN_DEVICES = "delete_orphan_devices"
 FIELD_ENTITY_IDS = "entity_ids"
 FIELD_DRY_RUN    = "dry_run"
 FIELD_DEVICE_IDS = "device_ids"
+FIELD_FORCE      = "force"
 
 # Nome evento HA sparato dopo scansione
 EVENT_ORPHANS_FOUND = f"{DOMAIN}_orphans_found"
