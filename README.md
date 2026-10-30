@@ -224,6 +224,16 @@ data:
   dry_run: true
 ```
 
+Set `force: true` to remove specific devices from the device registry even when they are not detected as orphans (for example a stale device whose integration is still installed). `force` requires `device_ids`, and the device's entities are removed with it.
+
+```yaml
+action: orphan_cleaner.delete_orphan_devices
+data:
+  device_ids:
+    - 0123456789abcdef0123456789abcdef
+  force: true
+```
+
 ---
 
 ## File Structure
