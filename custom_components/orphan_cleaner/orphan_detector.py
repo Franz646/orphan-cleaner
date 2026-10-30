@@ -255,14 +255,21 @@ async def async_delete_entities(
 async def async_delete_devices(
     hass: HomeAssistant,
     device_ids: list[str],
+    force: bool = False,
 ) -> tuple[list[str], list[str]]:
-    """Remove orphan devices (re-checked: only empty devices with no config entry)."""
+    """Remove orphan devices.
+
+    By default each device is re-checked and only removed if it is still an
+    orphan (no entities, no config entry). With ``force`` the check is skipped
+    and any device in the registry is removed by id, together with its
+    entities: use it for stale devices the detector does not catch.
+    """
     registry = dr.async_get(hass)
-    allowed  = {d["device_id"] for d in detect_orphan_devices(hass)}
+    allowed  = None if force else {d["device_id"] for d in detect_orphan_devices(hass)}
     deleted: list[str] = []
     failed:  list[str] = []
     for did in device_ids:
-        if did not in allowed or registry.async_get(did) is None:
+        if registry.async_get(did) is None or (allowed is not None and did not in allowed):
             failed.append(did)
             continue
         try:
