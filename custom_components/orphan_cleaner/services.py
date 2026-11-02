@@ -12,6 +12,7 @@ import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 
 from .const import (
     DOMAIN,
@@ -147,13 +148,13 @@ async def _handle_delete_orphan_devices(call: ServiceCall) -> None:
 
 
 def async_register_services(hass: HomeAssistant) -> None:
-    """Registra i servizi in Home Assistant."""
-    hass.services.async_register(DOMAIN, SERVICE_SCAN, _handle_scan, schema=SCHEMA_SCAN)
-    hass.services.async_register(
-        DOMAIN, SERVICE_DELETE_ORPHANS, _handle_delete_orphans, schema=SCHEMA_DELETE
+    """Registra i servizi in Home Assistant (solo admin)."""
+    async_register_admin_service(hass, DOMAIN, SERVICE_SCAN, _handle_scan, schema=SCHEMA_SCAN)
+    async_register_admin_service(
+        hass, DOMAIN, SERVICE_DELETE_ORPHANS, _handle_delete_orphans, schema=SCHEMA_DELETE
     )
-    hass.services.async_register(
-        DOMAIN, SERVICE_DELETE_ORPHAN_DEVICES, _handle_delete_orphan_devices,
+    async_register_admin_service(
+        hass, DOMAIN, SERVICE_DELETE_ORPHAN_DEVICES, _handle_delete_orphan_devices,
         schema=SCHEMA_DELETE_DEVICES,
     )
     _LOGGER.debug("Orphan Cleaner services registered")
