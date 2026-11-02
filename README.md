@@ -289,6 +289,8 @@ If you used **Save & Delete**, a backup file was written to `/config/orphan_clea
 
 All API endpoints require Home Assistant authentication. The panel itself requires admin privileges to access from the sidebar (`require_admin`). Endpoints that delete entities or write files to the configuration directory (`/delete`, `/export`) additionally require an admin-level account, regardless of how they are called. Read-only endpoints (`/scan`, `/ignore_list` GET) require a valid authenticated session but not admin rights.
 
+All services (`orphan_cleaner.scan`, `orphan_cleaner.delete_orphans`, `orphan_cleaner.delete_orphan_devices`) are admin-only. A call made by a non-admin user is rejected, including one started from a dashboard button or a script that the user runs. Automations that run on their own triggers are not affected.
+
 ---
 
 ## Warnings
