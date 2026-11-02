@@ -36,6 +36,7 @@ from .orphan_detector import (
     detect_orphan_devices,
     async_delete_entities,
     async_delete_devices,
+    describe_device_removal,
     startup_grace_active,
 )
 
@@ -129,6 +130,23 @@ async def _handle_delete_orphans(call: ServiceCall) -> None:
         _LOGGER.warning("Entities not deleted: %s", ", ".join(failed))
 
 
+def _log_force_removal(hass: HomeAssistant, device_ids: list[str], dry_run: bool) -> None:
+    """Logga cosa elimina force, come warning perché sia visibile con i log predefiniti."""
+    action = "[dry run] force would remove" if dry_run else "Force removing"
+    for did in device_ids:
+        info = describe_device_removal(hass, did)
+        if info is None:
+            _LOGGER.warning("%s device %s: not found in the device registry", action, did)
+            continue
+        _LOGGER.warning(
+            "%s device %s (%s) and its %d entities: %s",
+            action, info["name"], did, len(info["entities"]),
+            ", ".join(info["entities"]) or "none",
+        )
+        for eid, refs in info["used_in"].items():
+            _LOGGER.warning("  %s is still used by: %s", eid, ", ".join(refs))
+
+
 async def _handle_delete_orphan_devices(call: ServiceCall) -> None:
     """
     orphan_cleaner.delete_orphan_devices
@@ -151,6 +169,8 @@ async def _handle_delete_orphan_devices(call: ServiceCall) -> None:
 
     _LOGGER.info("Service delete_orphan_devices: %d devices (dry_run=%s, force=%s)",
                  len(target), dry_run, force)
+    if force:
+        _log_force_removal(hass, target, dry_run)
     if dry_run:
         for did in target:
             _LOGGER.info("  [dry run] %s", did)

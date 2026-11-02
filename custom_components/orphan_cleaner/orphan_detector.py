@@ -231,6 +231,28 @@ def detect_orphan_devices(hass: HomeAssistant) -> list[dict]:
     return found
 
 
+def describe_device_removal(hass: HomeAssistant, device_id: str) -> dict | None:
+    """What removing a device takes with it: its entities and where they are still used."""
+    device = dr.async_get(hass).async_get(device_id)
+    if device is None:
+        return None
+    entries = er.async_entries_for_device(
+        er.async_get(hass), device_id, include_disabled_entities=True
+    )
+    entity_ids = sorted(e.entity_id for e in entries)
+    used_in = {}
+    for eid in entity_ids:
+        refs = _references(hass, eid)
+        if refs:
+            used_in[eid] = refs
+    return {
+        "device_id": device_id,
+        "name": device.name_by_user or device.name or device_id,
+        "entities": entity_ids,
+        "used_in": used_in,
+    }
+
+
 async def async_delete_entities(
     hass: HomeAssistant,
     entity_ids: list[str],
