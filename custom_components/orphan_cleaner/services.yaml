@@ -65,11 +65,12 @@ delete_orphan_devices:
       description: >
         If true, removes the listed devices from the device registry even if
         they still have entities or a config entry (their entities are removed
-        too). Requires device_ids. Use for stale devices the scan does not detect.
+        too). Requires device_ids. Use for devices their integration no longer
+        provides but never removed. If the integration still has the device
+        (for example an ESPHome or Shelly device with its own entry), it comes
+        back after a restart or reload: delete it from the integration instead.
         Entities still used by automations, scripts or scenes are not protected:
-        they are only reported in the log, so run with dry_run first. If its
-        integration still has the device, the device comes back after a
-        restart or reload.
+        they are only reported in the log, so run with dry_run first.
       required: false
       default: false
       selector:

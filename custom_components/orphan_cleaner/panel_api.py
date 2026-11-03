@@ -17,7 +17,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS, BACKUP_DIR
+from .const import DOMAIN, CONF_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS, BACKUP_DIR, VERSION_PLACEHOLDER
 from .orphan_detector import (
     detect_orphans,
     detect_orphan_devices,
@@ -60,6 +60,7 @@ class OrphanCleanerIndexView(HomeAssistantView):
         html = await hass.async_add_executor_job(
             (FRONTEND_DIR / "panel.html").read_text, "utf-8"
         )
+        html = html.replace(VERSION_PLACEHOLDER, hass.data.get(DOMAIN, {}).get("version", ""))
         return web.Response(
             content_type="text/html",
             text=html,

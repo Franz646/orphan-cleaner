@@ -11,9 +11,10 @@ import pathlib
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.components import frontend
+from homeassistant.loader import async_get_integration
 import homeassistant.helpers.config_validation as cv
 
-from .const import DOMAIN, PANEL_URL, PANEL_NAME, PANEL_ICON, VERSION
+from .const import DOMAIN, PANEL_URL, PANEL_NAME, PANEL_ICON
 from .panel_api import async_register_views
 from .services import async_register_services, async_unregister_services
 
@@ -34,6 +35,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["config_entry"] = entry
     # Carica ignore list salvata nelle opzioni
     hass.data[DOMAIN]["ignore_list"] = list(entry.options.get("ignore_list", []))
+    # Versione letta dal manifest: una sola fonte, mostrata nel panel
+    version = str((await async_get_integration(hass, DOMAIN)).version)
+    hass.data[DOMAIN]["version"] = version
 
     _pycache = pathlib.Path(__file__).parent / "__pycache__"
     if _pycache.exists():
@@ -51,12 +55,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sidebar_title=PANEL_NAME,
         sidebar_icon=PANEL_ICON,
         frontend_url_path=PANEL_URL,
-        config={"url": f"/api/orphan_cleaner/panel?v={VERSION}"},
+        config={"url": f"/api/orphan_cleaner/panel?v={version}"},
         require_admin=True,
     )
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-    _LOGGER.info("Orphan Entity Cleaner %s loaded", VERSION)
+    _LOGGER.info("Orphan Entity Cleaner %s loaded", version)
     return True
 
 

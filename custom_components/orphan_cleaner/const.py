@@ -56,5 +56,5 @@ PANEL_URL  = "orphan-cleaner"
 PANEL_NAME = "Orphan Cleaner"
 PANEL_ICON = "mdi:broom"
 
-# Versione corrente (usata per cache-busting)
-VERSION = "4.2.1"
+# Segnaposto nel panel.html, sostituito con la versione del manifest
+VERSION_PLACEHOLDER = "__ORPHAN_CLEANER_VERSION__"
