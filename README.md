@@ -224,6 +224,24 @@ data:
   dry_run: true
 ```
 
+Set `force: true` to remove specific devices from the device registry even when they are not detected as orphans. `force` requires `device_ids`, and the device's entities are removed with it.
+
+`force` is for devices that their integration no longer provides but never removed from the registry, for example a device deleted from a cloud account while the integration is still installed. It does not help when the integration still knows the device:
+
+- If the device still has its own entry under **Settings > Devices & services** (as ESPHome and Shelly devices do), the integration recreates it after a restart or reload, with the same id. Recent Home Assistant versions also restore its name and area. To remove such a device for good, delete its entry from the integration instead.
+
+**Use `force` with care:**
+
+- Entities still used by automations, scripts or scenes are not protected. The device, its entities and anything still using them are written to the log as warnings, so run with `dry_run: true` first.
+
+```yaml
+action: orphan_cleaner.delete_orphan_devices
+data:
+  device_ids:
+    - 0123456789abcdef0123456789abcdef
+  force: true
+```
+
 ---
 
 ## File Structure

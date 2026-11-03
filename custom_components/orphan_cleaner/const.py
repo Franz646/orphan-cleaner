@@ -46,6 +46,7 @@ SERVICE_DELETE_ORPHAN_DEVICES = "delete_orphan_devices"
 FIELD_ENTITY_IDS = "entity_ids"
 FIELD_DRY_RUN    = "dry_run"
 FIELD_DEVICE_IDS = "device_ids"
+FIELD_FORCE      = "force"
 
 # Nome evento HA sparato dopo scansione
 EVENT_ORPHANS_FOUND = f"{DOMAIN}_orphans_found"
@@ -55,5 +56,5 @@ PANEL_URL  = "orphan-cleaner"
 PANEL_NAME = "Orphan Cleaner"
 PANEL_ICON = "mdi:broom"
 
-# Versione corrente (usata per cache-busting)
-VERSION = "4.2.1"
+# Segnaposto nel panel.html, sostituito con la versione del manifest
+VERSION_PLACEHOLDER = "__ORPHAN_CLEANER_VERSION__"

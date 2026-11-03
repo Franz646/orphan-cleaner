@@ -231,6 +231,28 @@ def detect_orphan_devices(hass: HomeAssistant) -> list[dict]:
     return found
 
 
+def describe_device_removal(hass: HomeAssistant, device_id: str) -> dict | None:
+    """What removing a device takes with it: its entities and where they are still used."""
+    device = dr.async_get(hass).async_get(device_id)
+    if device is None:
+        return None
+    entries = er.async_entries_for_device(
+        er.async_get(hass), device_id, include_disabled_entities=True
+    )
+    entity_ids = sorted(e.entity_id for e in entries)
+    used_in = {}
+    for eid in entity_ids:
+        refs = _references(hass, eid)
+        if refs:
+            used_in[eid] = refs
+    return {
+        "device_id": device_id,
+        "name": device.name_by_user or device.name or device_id,
+        "entities": entity_ids,
+        "used_in": used_in,
+    }
+
+
 async def async_delete_entities(
     hass: HomeAssistant,
     entity_ids: list[str],
@@ -255,14 +277,21 @@ async def async_delete_entities(
 async def async_delete_devices(
     hass: HomeAssistant,
     device_ids: list[str],
+    force: bool = False,
 ) -> tuple[list[str], list[str]]:
-    """Remove orphan devices (re-checked: only empty devices with no config entry)."""
+    """Remove orphan devices.
+
+    By default each device is re-checked and only removed if it is still an
+    orphan (no entities, no config entry). With ``force`` the check is skipped
+    and any device in the registry is removed by id, together with its
+    entities: use it for stale devices the detector does not catch.
+    """
     registry = dr.async_get(hass)
-    allowed  = {d["device_id"] for d in detect_orphan_devices(hass)}
+    allowed  = None if force else {d["device_id"] for d in detect_orphan_devices(hass)}
     deleted: list[str] = []
     failed:  list[str] = []
     for did in device_ids:
-        if did not in allowed or registry.async_get(did) is None:
+        if registry.async_get(did) is None or (allowed is not None and did not in allowed):
             failed.append(did)
             continue
         try:

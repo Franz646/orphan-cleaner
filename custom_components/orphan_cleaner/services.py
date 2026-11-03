@@ -11,6 +11,7 @@ import logging
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import async_register_admin_service
 
@@ -26,6 +27,7 @@ from .const import (
     FIELD_ENTITY_IDS,
     FIELD_DEVICE_IDS,
     FIELD_DRY_RUN,
+    FIELD_FORCE,
     EVENT_ORPHANS_FOUND,
 )
 from .orphan_detector import (
@@ -34,6 +36,7 @@ from .orphan_detector import (
     detect_orphan_devices,
     async_delete_entities,
     async_delete_devices,
+    describe_device_removal,
     startup_grace_active,
 )
 
@@ -52,6 +55,7 @@ SCHEMA_DELETE_DEVICES = vol.Schema(
     {
         vol.Optional(FIELD_DEVICE_IDS): vol.All(cv.ensure_list, [cv.string]),
         vol.Optional(FIELD_DRY_RUN, default=False): cv.boolean,
+        vol.Optional(FIELD_FORCE, default=False): cv.boolean,
     }
 )
 
@@ -126,25 +130,55 @@ async def _handle_delete_orphans(call: ServiceCall) -> None:
         _LOGGER.warning("Entities not deleted: %s", ", ".join(failed))
 
 
+def _log_force_removal(hass: HomeAssistant, device_ids: list[str], dry_run: bool) -> None:
+    """Logga cosa elimina force, come warning perché sia visibile con i log predefiniti."""
+    action = "[dry run] force would remove" if dry_run else "Force removing"
+    for did in device_ids:
+        info = describe_device_removal(hass, did)
+        if info is None:
+            _LOGGER.warning("%s device %s: not found in the device registry", action, did)
+            continue
+        _LOGGER.warning(
+            "%s device %s (%s) and its %d entities: %s",
+            action, info["name"], did, len(info["entities"]),
+            ", ".join(info["entities"]) or "none",
+        )
+        for eid, refs in info["used_in"].items():
+            _LOGGER.warning("  %s is still used by: %s", eid, ", ".join(refs))
+
+
 async def _handle_delete_orphan_devices(call: ServiceCall) -> None:
     """
     orphan_cleaner.delete_orphan_devices
 
     Deletes devices with no entities left and no existing config entry.
     Without device_ids, deletes all of them.
+
+    With force (requires device_ids), the listed devices are removed from the
+    device registry even if they are not detected as orphans.
     """
     hass      = call.hass
     dry_run   = call.data.get(FIELD_DRY_RUN, False)
+    force     = call.data.get(FIELD_FORCE, False)
     ids_input = call.data.get(FIELD_DEVICE_IDS)
-    target    = ids_input or [d["device_id"] for d in detect_orphan_devices(hass)]
 
-    _LOGGER.info("Service delete_orphan_devices: %d devices (dry_run=%s)", len(target), dry_run)
+    if force and not ids_input:
+        raise ServiceValidationError("force requires an explicit list of device_ids")
+
+    target = ids_input or [d["device_id"] for d in detect_orphan_devices(hass)]
+
+    _LOGGER.info("Service delete_orphan_devices: %d devices (dry_run=%s, force=%s)",
+                 len(target), dry_run, force)
+    if force:
+        _log_force_removal(hass, target, dry_run)
     if dry_run:
         for did in target:
             _LOGGER.info("  [dry run] %s", did)
         return
-    deleted, failed = await async_delete_devices(hass, target)
+    deleted, failed = await async_delete_devices(hass, target, force=force)
     _LOGGER.info("delete_orphan_devices: %d deleted, %d failed", len(deleted), len(failed))
+    if failed:
+        _LOGGER.warning("Devices not deleted: %s", ", ".join(failed))
 
 
 def async_register_services(hass: HomeAssistant) -> None:
