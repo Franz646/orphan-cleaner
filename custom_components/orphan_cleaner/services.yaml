@@ -67,9 +67,9 @@ delete_orphan_devices:
         they still have entities or a config entry (their entities are removed
         too). Requires device_ids. Use for stale devices the scan does not detect.
         Entities still used by automations, scripts or scenes are not protected:
-        they are only reported in the log, so run with dry_run first. A device
-        that is still active may come back after a restart or reload, without
-        its custom name and area.
+        they are only reported in the log, so run with dry_run first. If its
+        integration still has the device, the device comes back after a
+        restart or reload.
       required: false
       default: false
       selector:

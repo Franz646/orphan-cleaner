@@ -229,7 +229,7 @@ Set `force: true` to remove specific devices from the device registry even when 
 **Use `force` with care:**
 
 - Entities still used by automations, scripts or scenes are not protected. The device, its entities and anything still using them are written to the log as warnings, so run with `dry_run: true` first.
-- `force` bypasses the integration. A device that is still active may come back after a restart or reload, without its custom name and area.
+- `force` only removes the device from the registry. If its integration still has it, for example a device that still has its own entry under Settings > Devices & services, the device comes back after a restart or reload. To remove such a device for good, delete it from its integration instead.
 
 ```yaml
 action: orphan_cleaner.delete_orphan_devices
