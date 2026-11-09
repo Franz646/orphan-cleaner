@@ -29,8 +29,9 @@ delete_orphans:
     dry_run:
       name: Dry run
       description: >
-        If true, logs the entities that would be deleted
-        without making any changes. Useful for verification before proceeding.
+        If true, reports the entities that would be deleted (in the service
+        response and in the log) without making any changes. Useful for
+        verification before proceeding.
       required: false
       default: false
       selector:
@@ -55,7 +56,8 @@ delete_orphan_devices:
     dry_run:
       name: Dry run
       description: >
-        If true, logs the devices that would be deleted without making any changes.
+        If true, reports the devices that would be deleted (in the service
+        response and in the log) without making any changes.
       required: false
       default: false
       selector:

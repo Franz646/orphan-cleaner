@@ -180,10 +180,15 @@ def detect_orphans(
                      age_h=age_h, state="unavailable")
             continue
 
-        # 5. Heuristic (opt-in): registry entries without a config entry
-        if aggressive and not cfg_entry_id and platform and platform not in MANUAL_PLATFORMS:
+        # 5. Heuristic (opt-in): registry entries without a config entry.
+        #    Entities that currently have a live state are still provided (YAML
+        #    utility_meter, history_stats, scenes...): flagging them only invites
+        #    deleting working entities, losing their unique_id and statistics.
+        #    Restored states were handled in step 3, so a state here is live.
+        if (aggressive and not cfg_entry_id and platform
+                and platform not in MANUAL_PLATFORMS and state_obj is None):
             _add(entry, "heuristic", CATEGORY_REVIEW,
-                 "no config entry (YAML platform?): check before deleting")
+                 "no config entry and no state (YAML platform removed?): check before deleting")
 
     _LOGGER.info(
         "Scan: %d total, %d candidates (safe:%d review:%d unavailable:%d)%s",

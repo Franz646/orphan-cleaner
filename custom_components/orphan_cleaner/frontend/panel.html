@@ -422,31 +422,51 @@
 // ---------------------------------------------------------------------------
 // Authentication helper - the panel is loaded as an <iframe>, which does not
 // inherit the parent Home Assistant frontend's auth context automatically.
-// We pull the long-lived access token from the parent window's hass object
-// (exposed by the HA frontend to same-origin iframes) and attach it as a
-// Bearer token to every API call.
+// We take the access token from the parent window's hassConnection (exposed by
+// the HA frontend to same-origin iframes) and attach it as a Bearer token to
+// every API call.
+//
+// The access token lasts 30 minutes. It used to be cached for the life of the
+// panel: after half an hour every call failed with 401, and Home Assistant
+// logged it as an invalid login attempt, which counts towards IP banning.
+// Now the token is read on every call and refreshed when it has expired.
 // ---------------------------------------------------------------------------
-let _cachedToken = null;
-
-async function getHassToken() {
-  if (_cachedToken) return _cachedToken;
+async function getHassAuth() {
   try {
-    // HA esposta window.parent.hassConnection come Promise<{auth, conn}>
+    // HA exposes window.parent.hassConnection as Promise<{auth, conn}>
     const conn = await window.parent.hassConnection;
-    _cachedToken = conn?.auth?.data?.access_token || null;
-    if (!_cachedToken) console.warn('[OrphanCleaner] hassConnection resolved but no access_token found', conn);
-    return _cachedToken;
+    if (!conn?.auth) console.warn('[OrphanCleaner] hassConnection resolved but no auth found', conn);
+    return conn?.auth || null;
   } catch (e) {
     console.warn('[OrphanCleaner] could not access window.parent.hassConnection:', e.message);
     return null;
   }
 }
 
+async function getHassToken(forceRefresh = false) {
+  const auth = await getHassAuth();
+  if (!auth) return null;
+  if ((forceRefresh || auth.expired) && typeof auth.refreshAccessToken === 'function') {
+    try {
+      await auth.refreshAccessToken();
+    } catch (e) {
+      console.warn('[OrphanCleaner] could not refresh the access token:', e.message);
+    }
+  }
+  return auth.data?.access_token || null;
+}
+
 async function authedFetch(url, opts = {}) {
-  const token = await getHassToken();
-  const headers = { ...(opts.headers || {}) };
-  if (token) headers['Authorization'] = 'Bearer ' + token;
-  return fetch(url, { ...opts, credentials: 'same-origin', headers });
+  const send = async (forceRefresh) => {
+    const token = await getHassToken(forceRefresh);
+    const headers = { ...(opts.headers || {}) };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetch(url, { ...opts, credentials: 'same-origin', headers });
+  };
+  let resp = await send(false);
+  // The token can expire between the check and the request: retry once
+  if (resp.status === 401) resp = await send(true);
+  return resp;
 }
 
 let allOrphans       = [];

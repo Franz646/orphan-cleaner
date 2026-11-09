@@ -133,7 +133,7 @@ Detection steps, in order:
 2. **Integration not running** - the config entry is disabled, not loaded, in setup error, retrying setup or in migration error → *to review*.
 3. **No longer provided** - the state has `restored: true` → *safe*. Skipped during the first 10 minutes after Home Assistant starts, while integrations are still loading (the panel shows a notice).
 4. **Unavailable** - unavailable for at least **Min age (h)**, measured from the state's last change (not from when the entity was created) → *only unavailable*.
-5. **Heuristic** (optional, **Heuristic** checkbox) - no config entry and a platform not in the exclusion list → *to review*.
+5. **Heuristic** (optional, **Heuristic** checkbox) - no config entry, a platform not in the exclusion list and no current state → *to review*. Entities that currently have a state (for example YAML `utility_meter` or `history_stats` sensors) are still provided and are not reported.
 
 Heuristic exclusion list: `automation`, `counter`, `group`, `input_boolean`, `input_button`, `input_datetime`, `input_number`, `input_select`, `input_text`, `person`, `persistent_notification`, `scene`, `schedule`, `script`, `tag`, `template`, `timer`, `zone`
 
@@ -195,7 +195,7 @@ Deletes the specified entities or, if none are specified, only the candidates in
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `entity_ids` | list | No | Entities to delete. If omitted → only the *safe* orphans |
-| `dry_run` | bool | No | Log only, without making changes (default: `false`) |
+| `dry_run` | bool | No | Report what would be deleted, without making changes (default: `false`) |
 
 ```yaml
 # Delete all safe orphans
@@ -212,6 +212,23 @@ data:
   entity_ids:
     - sensor.old_device
     - binary_sensor.ghost_sensor
+```
+
+### Service responses
+
+On Home Assistant 2025.6 or later, all three services return their result as a service response (in **Developer tools > Actions**, tick *Return response*; in scripts and automations, use `response_variable`):
+
+- `scan`: the same data as the `orphan_cleaner_orphans_found` event.
+- `delete_orphans` and `delete_orphan_devices`: with `dry_run: true`, `would_delete` lists what would be deleted (with `force`, `details` adds each device's entities and where they are still used); otherwise `deleted` and `failed`.
+
+A dry run is also written to the log as a warning, so it shows up with the default log level.
+
+```yaml
+action: orphan_cleaner.delete_orphans
+data:
+  dry_run: true
+response_variable: result
+# result.would_delete -> ["sensor.old_device", ...]
 ```
 
 ### `orphan_cleaner.delete_orphan_devices`
