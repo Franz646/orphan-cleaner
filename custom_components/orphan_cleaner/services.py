@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import voluptuous as vol
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import async_register_admin_service
@@ -78,12 +78,13 @@ def _scan(hass: HomeAssistant):
     )
 
 
-async def _handle_scan(call: ServiceCall) -> None:
+async def _handle_scan(call: ServiceCall) -> ServiceResponse:
     """
     orphan_cleaner.scan
 
     Runs a scan and fires `orphan_cleaner_orphans_found` with the result:
     every candidate has a `category` (safe / review / unavailable).
+    The same payload is returned as the service response.
     """
     hass    = call.hass
     orphans = _scan(hass)
@@ -99,14 +100,16 @@ async def _handle_scan(call: ServiceCall) -> None:
         "Service scan: %d candidates (%d safe) - event '%s' fired",
         payload["count"], payload["count_safe"], EVENT_ORPHANS_FOUND,
     )
+    return payload
 
 
-async def _handle_delete_orphans(call: ServiceCall) -> None:
+async def _handle_delete_orphans(call: ServiceCall) -> ServiceResponse:
     """
     orphan_cleaner.delete_orphans
 
     Deletes the given entity_ids. Without entity_ids, deletes only the
     candidates in the `safe` category (never review/unavailable ones).
+    Returns what was (or, with dry_run, would be) deleted.
     """
     hass      = call.hass
     dry_run   = call.data.get(FIELD_DRY_RUN, False)
@@ -120,14 +123,19 @@ async def _handle_delete_orphans(call: ServiceCall) -> None:
     _LOGGER.info("Service delete_orphans: %d entities to delete (dry_run=%s)",
                  len(target_ids), dry_run)
     if dry_run:
-        for eid in target_ids:
-            _LOGGER.info("  [dry run] %s", eid)
-        return
+        # Warning, not info: the default log level hides info, and a dry run
+        # that shows nothing is useless.
+        _LOGGER.warning(
+            "[dry run] delete_orphans would delete %d entities: %s",
+            len(target_ids), ", ".join(target_ids) or "none",
+        )
+        return {"dry_run": True, "would_delete": list(target_ids)}
 
     deleted, failed = await async_delete_entities(hass, target_ids)
     _LOGGER.info("delete_orphans: %d deleted, %d failed", len(deleted), len(failed))
     if failed:
         _LOGGER.warning("Entities not deleted: %s", ", ".join(failed))
+    return {"dry_run": False, "deleted": list(deleted), "failed": list(failed)}
 
 
 def _log_force_removal(hass: HomeAssistant, device_ids: list[str], dry_run: bool) -> None:
@@ -147,7 +155,7 @@ def _log_force_removal(hass: HomeAssistant, device_ids: list[str], dry_run: bool
             _LOGGER.warning("  %s is still used by: %s", eid, ", ".join(refs))
 
 
-async def _handle_delete_orphan_devices(call: ServiceCall) -> None:
+async def _handle_delete_orphan_devices(call: ServiceCall) -> ServiceResponse:
     """
     orphan_cleaner.delete_orphan_devices
 
@@ -156,6 +164,7 @@ async def _handle_delete_orphan_devices(call: ServiceCall) -> None:
 
     With force (requires device_ids), the listed devices are removed from the
     device registry even if they are not detected as orphans.
+    Returns what was (or, with dry_run, would be) deleted.
     """
     hass      = call.hass
     dry_run   = call.data.get(FIELD_DRY_RUN, False)
@@ -172,24 +181,46 @@ async def _handle_delete_orphan_devices(call: ServiceCall) -> None:
     if force:
         _log_force_removal(hass, target, dry_run)
     if dry_run:
-        for did in target:
-            _LOGGER.info("  [dry run] %s", did)
-        return
+        _LOGGER.warning(
+            "[dry run] delete_orphan_devices would delete %d devices: %s",
+            len(target), ", ".join(target) or "none",
+        )
+        response: dict = {"dry_run": True, "force": force, "would_delete": list(target)}
+        if force:
+            response["details"] = {
+                did: describe_device_removal(hass, did) for did in target
+            }
+        return response
     deleted, failed = await async_delete_devices(hass, target, force=force)
     _LOGGER.info("delete_orphan_devices: %d deleted, %d failed", len(deleted), len(failed))
     if failed:
         _LOGGER.warning("Devices not deleted: %s", ", ".join(failed))
+    return {"dry_run": False, "force": force, "deleted": list(deleted), "failed": list(failed)}
+
+
+def _register(hass: HomeAssistant, service: str, handler, schema) -> None:
+    """Registra un servizio admin con risposta opzionale.
+
+    async_register_admin_service accetta supports_response solo da HA 2025.6:
+    sulle versioni precedenti il servizio viene registrato senza risposta
+    (i risultati restano nel log e nell'evento).
+    """
+    try:
+        async_register_admin_service(
+            hass, DOMAIN, service, handler, schema=schema,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+    except TypeError:
+        async_register_admin_service(hass, DOMAIN, service, handler, schema=schema)
 
 
 def async_register_services(hass: HomeAssistant) -> None:
     """Registra i servizi in Home Assistant (solo admin)."""
-    async_register_admin_service(hass, DOMAIN, SERVICE_SCAN, _handle_scan, schema=SCHEMA_SCAN)
-    async_register_admin_service(
-        hass, DOMAIN, SERVICE_DELETE_ORPHANS, _handle_delete_orphans, schema=SCHEMA_DELETE
-    )
-    async_register_admin_service(
-        hass, DOMAIN, SERVICE_DELETE_ORPHAN_DEVICES, _handle_delete_orphan_devices,
-        schema=SCHEMA_DELETE_DEVICES,
+    _register(hass, SERVICE_SCAN, _handle_scan, SCHEMA_SCAN)
+    _register(hass, SERVICE_DELETE_ORPHANS, _handle_delete_orphans, SCHEMA_DELETE)
+    _register(
+        hass, SERVICE_DELETE_ORPHAN_DEVICES, _handle_delete_orphan_devices,
+        SCHEMA_DELETE_DEVICES,
     )
     _LOGGER.debug("Orphan Cleaner services registered")
 
